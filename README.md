@@ -278,6 +278,21 @@ Designed as a support system, not a surveillance tool
 ✅ Research & Publication Ready
 ✅ Scalable Modular Architecture
 
+## 📊 Research Novelty Analysis
+
+Detailed comparison available in `/novelty` folder.
+
+We compare 15+ state-of-the-art models across:
+- Video modality
+- Audio modality
+- Text modality
+- Multimodal fusion
+
+Our improvement:
+- Real-time unified multimodal system
+- Student-centric gamification
+- Productivity + well-being integrated metrics
+
 👩‍💻 Authors
 
 Srujana T    VANYA CR   VAISHNAVI MUDHOLE SATHWIK.SK
