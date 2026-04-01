@@ -295,6 +295,9 @@ Our improvement:
 
 👩‍💻 Authors
 
-Srujana T    VANYA CR   VAISHNAVI MUDHOLE SATHWIK.SK
+Srujana T
+Vanya CR
+Vaishnavi M
+SATHWIK SK
 B.Tech CSE
 PES University, Karnataka
