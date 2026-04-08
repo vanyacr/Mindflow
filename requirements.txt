@@ -1,0 +1,12 @@
+opencv-python
+mediapipe
+deepface
+librosa
+sounddevice
+noisereduce
+transformers
+torch
+streamlit
+pandas
+numpy
+scipy
