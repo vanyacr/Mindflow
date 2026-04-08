@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from functools import lru_cache
 import re
 from typing import Dict, List
@@ -30,13 +31,69 @@ EMOTION_KEYWORDS = {
 
 @lru_cache(maxsize=1)
 def load_sentiment_model():
-    """Load and cache the lightweight DistilBERT sentiment model."""
-    return pipeline("sentiment-analysis", model=SENTIMENT_MODEL_NAME)
+    """Load and cache the DistilBERT sentiment model if available locally.
+
+    By default we avoid network downloads to keep CLI runs responsive.
+    Set MINDFLOW_ALLOW_MODEL_DOWNLOAD=1 to allow online model fetch.
+    """
+    allow_download = os.getenv("MINDFLOW_ALLOW_MODEL_DOWNLOAD", "0") == "1"
+
+    try:
+        return pipeline(
+            "sentiment-analysis",
+            model=SENTIMENT_MODEL_NAME,
+            local_files_only=not allow_download,
+        )
+    except Exception:
+        return None
+
+
+def _fallback_sentiment(text: str) -> Dict[str, float]:
+    """Keyword-based fallback when transformer weights are unavailable."""
+    normalized = str(text or "").lower()
+    positive_words = {
+        "good",
+        "great",
+        "calm",
+        "focused",
+        "motivated",
+        "ready",
+        "improve",
+        "confident",
+        "hopeful",
+        "productive",
+    }
+    negative_words = {
+        "bad",
+        "anxious",
+        "stressed",
+        "depressed",
+        "hopeless",
+        "overwhelmed",
+        "nervous",
+        "tired",
+        "frustrated",
+        "panic",
+    }
+
+    tokens = re.findall(r"[a-z']+", normalized)
+    pos = sum(1 for token in tokens if token in positive_words)
+    neg = sum(1 for token in tokens if token in negative_words)
+
+    if pos >= neg:
+        score = (pos + 1.0) / (pos + neg + 2.0)
+        return {"label": "POSITIVE", "score": float(round(score, 4))}
+
+    score = (neg + 1.0) / (pos + neg + 2.0)
+    return {"label": "NEGATIVE", "score": float(round(score, 4))}
 
 
 def analyze_sentiment(text: str) -> Dict[str, float]:
     """Return sentiment label and confidence score for input text."""
     sentiment_pipe = load_sentiment_model()
+    if sentiment_pipe is None:
+        return _fallback_sentiment(text)
+
     result = sentiment_pipe(text or "", truncation=True)[0]
     return {
         "label": str(result["label"]).upper(),
