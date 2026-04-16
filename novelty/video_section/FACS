@@ -1,0 +1,23 @@
+Facial Action Coding System
+The Facial Action Coding System (FACS) is a comprehensive, anatomically based framework for categorizing facial movements by their underlying muscle actions. Developed by psychologists Paul Ekman and Wallace V. Friesen in the 1970s, it provides an objective method to describe and measure facial behavior used in psychology, behavioral science, and computer vision.
+
+Key Facts
+Developed by: Paul Ekman and Wallace V. Friesen (1978)
+
+Basis: Human facial muscle anatomy
+
+Core unit: Action Unit (AU) representing a specific muscle movement
+
+Applications: Emotion research, lie detection, human–computer interaction, animation
+
+Structure and Mechanism
+FACS decomposes facial expressions into individual “action units” (AUs), each corresponding to a contraction of one or more facial muscles. By combining AUs, coders can describe complex expressions independent of emotional interpretation. The system uses trained human coders or automated software to identify AUs from video or image data.
+
+Development and Refinement
+The original FACS (1978) built on prior facial coding systems but introduced precise anatomical mapping. It was revised in 2002 by Ekman, Friesen, and Joseph Hager to improve accuracy and applicability across diverse populations. The revision standardized coding criteria and introduced detailed training materials for reliability.
+
+Applications and Research Impact
+FACS is widely used in emotion and deception studies, behavioral therapy, and affective computing. It underpins research linking facial movement patterns to emotional states and is integrated into machine learning systems for emotion recognition and animation. Its objective, muscle-based structure allows cross-cultural and interdisciplinary application.
+
+Training and Implementation
+Certified FACS coders undergo extensive training to reach reliability standards. Increasingly, automated FACS systems use computer vision algorithms to detect AUs in real time, extending its use to psychology, security, healthcare, and entertainment technology.
