@@ -10,3 +10,6 @@ streamlit
 pandas
 numpy
 scipy
+pynput
+scikit-learn
+joblib

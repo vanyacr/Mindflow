@@ -49,16 +49,29 @@ def run_text_pipeline(raw_text: str) -> Dict[str, Any]:
         else "calm"
     )
     sentiment_score = _round_prob(sentiment_result.get("score", 0.0))
+    anxiety_prob = _round_prob(emotion_scores.get("anxious", 0.0))
+    stress_prob = _round_prob(
+        max(
+            0.0,
+            min(
+                1.0,
+                (anxiety_prob * 0.45)
+                + (emotion_scores.get("stressed", 0.0) * 0.35)
+                + (emotion_scores.get("frustrated", 0.0) * 0.2)
+                + max(0.0, (1.0 - sentiment_score)) * 0.35,
+            ),
+        )
+    )
+    motivation_level = _round_prob(emotion_scores.get("motivated", 0.0))
     estimated_sentiment_accuracy, estimated_overall_text_accuracy = _estimate_display_accuracy(
         sentiment_score,
         emotion_scores,
     )
-    anxiety_prob = _round_prob(emotion_scores.get("anxious", 0.0))
-    motivation_level = _round_prob(emotion_scores.get("motivated", 0.0))
 
     return {
         "sentiment_polarity": str(sentiment_result.get("label", "NEGATIVE")).upper(),
         "sentiment_score": sentiment_score,
+        "stress_score": stress_prob,
         "estimated_sentiment_accuracy": estimated_sentiment_accuracy,
         "estimated_overall_text_accuracy": estimated_overall_text_accuracy,
         "anxiety_prob": anxiety_prob,
