@@ -71,6 +71,8 @@ The model-level output is approximately:
 {"label": "POSITIVE" or "NEGATIVE", "score": float}
 ```
 
+The source code does not explicitly name a tokenizer class. Hugging Face `pipeline()` automatically selects the tokenizer associated with the model. `test_text.py` separately requests `AutoTokenizer.from_pretrained()` for the same model name. Therefore, the exact tokenizer class is not explicitly fixed by the TEXT implementation; the model-associated DistilBERT uncased tokenizer is used when available.
+
 If model loading fails, `load_sentiment_model()` returns `None` and the code uses its keyword-based fallback sentiment scorer. Loading exceptions are caught; inference exceptions are not caught by `text_pipeline.py`.
 
 ### Emotion scoring
@@ -110,6 +112,16 @@ stress_score = clamp(
 ```
 
 This is a project heuristic. It is not the output of a trained stress model.
+
+### Sentiment output details
+
+The sentiment classes are exactly `POSITIVE` and `NEGATIVE`. There is no `NEUTRAL` class in the SST-2 model or in the current pipeline. The model's `score` is the probability-like predicted-class score returned by the Hugging Face pipeline. The pipeline stores that value unchanged, rounded to four decimals, as `sentiment_score`.
+
+For a `POSITIVE` result, the score represents the model score for `POSITIVE`; for a `NEGATIVE` result, it represents the model score for `NEGATIVE`. It is not converted to a signed sentiment value. The pipeline determines polarity by uppercasing the model's `label`.
+
+If the transformer cannot be loaded, fallback sentiment counts words from its hardcoded positive and negative sets. The fallback chooses `POSITIVE` when positive count is greater than or equal to negative count and returns `(positive + 1) / (positive + negative + 2)`. Otherwise it chooses `NEGATIVE` and returns `(negative + 1) / (positive + negative + 2)`. This fallback value is also a keyword-derived score, not calibrated confidence.
+
+Concrete example: the actual input `I am stressed about exams and deadlines.` produced `sentiment_polarity: NEGATIVE` and `sentiment_score: 0.996`; this means the loaded SST-2 classifier assigned a score of `0.996` to its `NEGATIVE` class.
 
 ## 2. EXACT OUTPUT SCHEMA
 
@@ -507,3 +519,9 @@ For an inference failure:
 ```
 
 The adapter should not add a fabricated `confidence`, timestamp, window size, accuracy, stress model, or emotion probability. The current TEXT module supplies text-side evidence only; Fusion remains responsible for combining it with Video and Audio evidence to estimate Focus, Stress, Productivity, Well-being, and risk indicators.
+
+## Provided-file and artifact status
+
+The inspected TEXT files are `TEXT/text_model.py`, `TEXT/text_pipeline.py`, `TEXT/text_preprocess.py`, `TEXT/text_datasets.py`, `TEXT/__init__.py`, `test_text.py`, and `tests/test_text_pipeline_accuracy.py`. The relevant configuration is `requirements.txt`; relevant documentation includes `README.md`, `TEXT_AND_KEYSTROKE_MODALITY_REPORT.md`, `TEXT_DATASET_AND_PREPROCESSING_OVERVIEW.md`, `STRESS_ESTIMATOR_TABLE.md`, and `novelty/text_section/README.md`.
+
+The following requested items are not implemented or present in the repository: a project-local TEXT checkpoint, sample-output file, TEXT configuration file, Fusion implementation, and a non-empty text-section README. The repository contains a file named `FUSION`, but it is whitespace-only rather than a Fusion directory or implementation. The Hugging Face model used during testing exists in the machine's external local cache, not as a repository checkpoint.
