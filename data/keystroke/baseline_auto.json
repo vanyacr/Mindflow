@@ -1,0 +1,18 @@
+{
+  "means": {
+    "velocity": 162.3749,
+    "dwell_mean_ms": 98.65416666666665,
+    "dwell_std_ms": 29.29783333333333,
+    "latency_mean_ms": 307.5901333333333,
+    "pause_freq": 14.389766666666668,
+    "error_count": 5.804466666666666
+  },
+  "stds": {
+    "velocity": 40.148823231903904,
+    "dwell_mean_ms": 2.915859816398738,
+    "dwell_std_ms": 2.70364890513214,
+    "latency_mean_ms": 92.20193827327542,
+    "pause_freq": 2.7212448160518177,
+    "error_count": 1.9362978564489735
+  }
+}
