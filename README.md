@@ -1,4 +1,4 @@
-# 🧠 MindFlow — AI-Powered Mental Well-Being & Productivity Companion
+# 🧠 MindFlow — AI-Driven Mental Well-Being & Productivity Companion
 
 **Final Year Capstone Project**
 *Real-Time Multimodal Intelligence • AI Fusion Engine • Gamified Self-Regulation Framework*
