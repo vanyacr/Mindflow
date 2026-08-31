@@ -17,13 +17,8 @@ def weighted_fusion(
     w_audio: float = 0.25,
     w_keystroke: float = 0.2,
     w_text: float = 0.2,
-    confidence_map: Optional[Dict[str, float]] = None,
 ) -> Dict[str, object]:
-    """Late-fusion weighted average with confidence-aware modality weighting.
-
-    Low-confidence modalities are filtered out so noisy or sparse signals cannot
-    dominate the final score, while stronger modalities retain their base importance.
-    """
+    """Late-fusion weighted average with missing-modality handling."""
     items = [
         ("visual", score_visual, w_visual),
         ("audio", score_audio, w_audio),
@@ -31,23 +26,8 @@ def weighted_fusion(
         ("text", score_text, w_text),
     ]
 
-    confidence_map = confidence_map or {}
-    adjusted_items = []
-    for name, score, base_weight in items:
-        if score is None:
-            continue
-
-        confidence = float(confidence_map.get(name, 1.0))
-        confidence = max(0.0, min(1.0, confidence))
-
-        if confidence < 0.15:
-            continue
-
-        # This keeps the original modality priority but scales it by reliability.
-        effective_weight = float(base_weight) * (0.25 + (confidence * 0.75))
-        adjusted_items.append((name, float(score), effective_weight))
-
-    if not adjusted_items:
+    active = [(name, float(score), float(weight)) for name, score, weight in items if score is not None]
+    if not active:
         return {
             "final_score": 0.0,
             "used_modalities": [],
@@ -55,8 +35,8 @@ def weighted_fusion(
             "mask": {"visual": 0, "audio": 0, "keystroke": 0, "text": 0},
         }
 
-    total_weight = sum(weight for _, _, weight in adjusted_items)
-    norm = [(name, score, weight / total_weight) for name, score, weight in adjusted_items]
+    total_weight = sum(weight for _, _, weight in active)
+    norm = [(name, score, weight / total_weight) for name, score, weight in active]
 
     final_score = sum(score * w for _, score, w in norm)
     return {
@@ -96,10 +76,6 @@ def run_text_and_keystroke_inference(
     fusion = weighted_fusion(
         score_keystroke=keystroke_out["keystroke_score"],
         score_text=(text_out["text_score"] if text_out else None),
-        confidence_map={
-            "keystroke": float(keystroke_out.get("confidence", 0.5)),
-            "text": float(text_out.get("confidence", 0.5)) if text_out else 0.0,
-        },
     )
 
     return {

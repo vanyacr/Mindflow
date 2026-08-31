@@ -29,29 +29,13 @@ except Exception:  # pragma: no cover - optional dependency at runtime
 
 
 EPS = 1e-6
-BASELINE_FEATURE_KEYS = [
-    "velocity",
-    "dwell_mean_ms",
-    "dwell_std_ms",
-    "latency_mean_ms",
-    "latency_std_ms",
-    "pause_freq",
-    "error_count",
-    "backspace_rate",
-    "burst_ratio",
-    "key_variation",
-]
 DEFAULT_FEATURE_ORDER = [
     "velocity_zscore",
     "dwell_mean_zscore",
     "dwell_std_zscore",
     "latency_mean_zscore",
-    "latency_std_zscore",
     "pause_freq_zscore",
     "error_count_zscore",
-    "backspace_rate_zscore",
-    "burst_ratio_zscore",
-    "key_variation_zscore",
 ]
 
 
@@ -75,13 +59,7 @@ class KeystrokeRecord:
 class KeystrokeTracker:
     """Capture keyboard events and emit stress-ready feature vectors."""
 
-    def __init__(
-        self,
-        poll_interval_s: float = 0.1,
-        baseline_path: str | Path | None = None,
-        auto_load_baseline: bool = True,
-        auto_update_baseline: bool = True,
-    ) -> None:
+    def __init__(self, poll_interval_s: float = 0.1) -> None:
         self.poll_interval_s = max(0.01, float(poll_interval_s))
         self._queue: queue.Queue[Tuple[str, str, float]] = queue.Queue()
         self._press_times: Dict[str, float] = {}
@@ -91,10 +69,6 @@ class KeystrokeTracker:
         self._stop_event = threading.Event()
         self._worker: Optional[threading.Thread] = None
         self._listener = None
-        self.auto_update_baseline = bool(auto_update_baseline)
-        self.baseline_path = Path(baseline_path) if baseline_path else (Path("data") / "keystroke" / "baseline_auto.json")
-        self._baseline_loaded_from_disk = False
-        self._baseline_update_count = 0
 
         # Default baseline values. Replace via set_baseline_stats after enrollment.
         self._baseline_means = {
@@ -102,32 +76,17 @@ class KeystrokeTracker:
             "dwell_mean_ms": 95.0,
             "dwell_std_ms": 30.0,
             "latency_mean_ms": 140.0,
-            "latency_std_ms": 80.0,
             "pause_freq": 2.0,
             "error_count": 3.0,
-            "backspace_rate": 1.5,
-            "burst_ratio": 0.45,
-            "key_variation": 0.7,
         }
         self._baseline_stds = {
             "velocity": 12.0,
             "dwell_mean_ms": 20.0,
             "dwell_std_ms": 10.0,
             "latency_mean_ms": 50.0,
-            "latency_std_ms": 35.0,
             "pause_freq": 1.0,
             "error_count": 2.0,
-            "backspace_rate": 1.2,
-            "burst_ratio": 0.18,
-            "key_variation": 0.2,
         }
-
-        if auto_load_baseline and self.baseline_path.exists():
-            try:
-                self.load_baseline(self.baseline_path)
-                self._baseline_loaded_from_disk = True
-            except Exception:
-                self._baseline_loaded_from_disk = False
 
     def _key_to_name(self, key: object) -> str:
         if hasattr(key, "char") and getattr(key, "char") is not None:
@@ -217,7 +176,7 @@ class KeystrokeTracker:
         return [(r.key_name, float(r.press_ts), float(r.release_ts)) for r in records]
 
     def compute_features(self, window_seconds: float = 30.0, pause_threshold_ms: float = 500.0) -> Dict[str, float]:
-        """Compute rich keystroke features from recent records."""
+        """Compute six core keystroke features from recent records."""
         records = self._window_records(window_seconds)
         if len(records) == 0:
             return {
@@ -225,14 +184,8 @@ class KeystrokeTracker:
                 "dwell_mean_ms": 0.0,
                 "dwell_std_ms": 0.0,
                 "latency_mean_ms": 0.0,
-                "latency_std_ms": 0.0,
                 "pause_freq": 0.0,
                 "error_count": 0.0,
-                "error_count_raw": 0.0,
-                "backspace_rate": 0.0,
-                "burst_ratio": 0.0,
-                "key_variation": 0.0,
-                "pattern_variance": 0.0,
                 "sample_count": 0.0,
             }
 
@@ -241,6 +194,7 @@ class KeystrokeTracker:
         elapsed_s = max(EPS, last_release - first_press)
 
         key_count = float(len(records))
+        # Requested velocity formula: (keystroke_count / elapsed_seconds) * 60
         velocity_wpm = (key_count / elapsed_s) * 60.0
 
         dwells = np.array([r.dwell_ms for r in records], dtype=float)
@@ -264,15 +218,6 @@ class KeystrokeTracker:
         )
         error_count = float(error_count_raw / (elapsed_s / 60.0))
 
-        backspace_rate = float(error_count_raw / max(elapsed_s / 60.0, EPS))
-        burst_count = sum(
-            1
-            for i in range(1, len(records))
-            if (records[i].press_ts - records[i - 1].press_ts) * 1000.0 < 200.0
-        )
-        burst_ratio = float(burst_count / max(len(records) - 1, 1))
-        key_variation = float(len({r.key_name for r in records}) / max(len(records), 1))
-
         pattern_variance = float(np.std(np.array([*dwells.tolist(), *latencies_ms], dtype=float))) if latencies_ms else dwell_std
 
         return {
@@ -284,9 +229,6 @@ class KeystrokeTracker:
             "pause_freq": round(pause_freq, 4),
             "error_count": round(error_count, 4),
             "error_count_raw": round(error_count_raw, 4),
-            "backspace_rate": round(backspace_rate, 4),
-            "burst_ratio": round(burst_ratio, 4),
-            "key_variation": round(key_variation, 4),
             "pattern_variance": round(pattern_variance, 4),
             "sample_count": key_count,
         }
@@ -316,96 +258,21 @@ class KeystrokeTracker:
         stds = data.get("stds", {})
         self.set_baseline_stats(means=means, stds=stds)
 
-    def _blend_baseline_from_features(self, features: Dict[str, float], blend: float = 0.08) -> None:
-        """Update baseline via EMA using stable windows.
-
-        This keeps history while adapting slowly to the user's normal typing drift.
-        """
-        alpha = max(0.01, min(0.25, float(blend)))
-        for key in BASELINE_FEATURE_KEYS:
-            value = float(features.get(key, 0.0))
-            old_mean = float(self._baseline_means[key])
-            new_mean = ((1.0 - alpha) * old_mean) + (alpha * value)
-
-            # Approximate updated spread from absolute deviation to keep std stable.
-            deviation = abs(value - new_mean)
-            old_std = float(self._baseline_stds[key])
-            new_std = ((1.0 - alpha) * old_std) + (alpha * max(EPS, deviation))
-
-            self._baseline_means[key] = float(new_mean)
-            self._baseline_stds[key] = float(max(EPS, new_std))
-
-    def _maybe_auto_update_baseline(self, features: Dict[str, float], stress_score: float) -> bool:
-        """Persist baseline history from likely-neutral windows only."""
-        if not self.auto_update_baseline:
-            return False
-        if float(features.get("sample_count", 0.0)) < 25.0:
-            return False
-        if float(stress_score) > 0.45:
-            return False
-
-        self._blend_baseline_from_features(features)
-        self._baseline_update_count += 1
-
-        try:
-            self.save_baseline(self.baseline_path)
-        except Exception:
-            return False
-        return True
-
     def zscore_features(self, features: Dict[str, float]) -> Dict[str, float]:
-        """Apply baseline z-score normalization to the expanded feature set."""
+        """Apply baseline z-score normalization to six features."""
         out = {
             "velocity_zscore": _safe_z(features["velocity"], self._baseline_means["velocity"], self._baseline_stds["velocity"]),
             "dwell_mean_zscore": _safe_z(features["dwell_mean_ms"], self._baseline_means["dwell_mean_ms"], self._baseline_stds["dwell_mean_ms"]),
             "dwell_std_zscore": _safe_z(features["dwell_std_ms"], self._baseline_means["dwell_std_ms"], self._baseline_stds["dwell_std_ms"]),
             "latency_mean_zscore": _safe_z(features["latency_mean_ms"], self._baseline_means["latency_mean_ms"], self._baseline_stds["latency_mean_ms"]),
-            "latency_std_zscore": _safe_z(features["latency_std_ms"], self._baseline_means["latency_std_ms"], self._baseline_stds["latency_std_ms"]),
             "pause_freq_zscore": _safe_z(features["pause_freq"], self._baseline_means["pause_freq"], self._baseline_stds["pause_freq"]),
             "error_count_zscore": _safe_z(features["error_count"], self._baseline_means["error_count"], self._baseline_stds["error_count"]),
-            "backspace_rate_zscore": _safe_z(features["backspace_rate"], self._baseline_means["backspace_rate"], self._baseline_stds["backspace_rate"]),
-            "burst_ratio_zscore": _safe_z(features["burst_ratio"], self._baseline_means["burst_ratio"], self._baseline_stds["burst_ratio"]),
-            "key_variation_zscore": _safe_z(features["key_variation"], self._baseline_means["key_variation"], self._baseline_stds["key_variation"]),
         }
         return {k: float(round(v, 4)) for k, v in out.items()}
 
     def feature_vector(self, zscores: Dict[str, float]) -> np.ndarray:
         """Return ordered feature vector used by the model."""
         return np.array([[float(zscores[k]) for k in DEFAULT_FEATURE_ORDER]], dtype=float)
-
-    def compare_to_baseline(self, features: Dict[str, float]) -> Dict[str, object]:
-        """Compare a current feature window to the user-specific baseline.
-
-        This is the base personalized anomaly model: if the user deviates strongly
-        from their own normal typing pattern, the system marks it as stressed.
-        """
-        zscores = self.zscore_features(features)
-        abs_zscores = [abs(float(value)) for value in zscores.values()]
-        magnitude = float(np.mean(abs_zscores)) if abs_zscores else 0.0
-
-        # A moderate deviation from baseline corresponds to the user's normal range.
-        # Strong deviations push the score toward stressed territory.
-        overall_score = 1.0 / (1.0 + math.exp(-(magnitude - 1.0)))
-        overall_score = float(round(max(0.0, min(1.0, overall_score)), 4))
-
-        if overall_score >= 0.6:
-            status = "stressed"
-        elif overall_score >= 0.35:
-            status = "watch"
-        else:
-            status = "normal"
-
-        return {
-            "overall_score": overall_score,
-            "status": status,
-            "deviation_magnitude": round(magnitude, 4),
-            "zscore_features": zscores,
-            "feature_deltas": {
-                key: round(float(value), 4) for key, value in zscores.items()
-            },
-            "baseline_loaded_from_disk": self._baseline_loaded_from_disk,
-            "baseline_path": str(self.baseline_path),
-        }
 
     def keystroke_stress_score(
         self,
@@ -414,23 +281,6 @@ class KeystrokeTracker:
     ) -> Dict[str, object]:
         """Return fusion-ready keystroke stress score every 10-30 seconds."""
         features = self.compute_features(window_seconds=window_seconds)
-
-        # Avoid overconfident outputs when there is too little typing evidence.
-        if float(features.get("sample_count", 0.0)) < 8.0:
-            return {
-                "modality": "keystroke",
-                "keystroke_score": 0.5,
-                "confidence": 0.2,
-                "window_seconds": int(window_seconds),
-                "features": features,
-                "zscore_features": {},
-                "feature_vector": [],
-                "model_used": "insufficient_data",
-                "baseline_loaded_from_disk": self._baseline_loaded_from_disk,
-                "baseline_path": str(self.baseline_path),
-                "baseline_update_count": int(self._baseline_update_count),
-            }
-
         zscores = self.zscore_features(features)
         vector = self.feature_vector(zscores)
 
@@ -451,8 +301,6 @@ class KeystrokeTracker:
             magnitude = float(np.mean(np.abs(vector[0])))
             stress_score = 1.0 / (1.0 + math.exp(-(magnitude - 1.0)))
 
-        baseline_updated = self._maybe_auto_update_baseline(features=features, stress_score=float(stress_score))
-
         confidence = min(1.0, max(0.2, features["sample_count"] / 120.0))
 
         return {
@@ -464,10 +312,6 @@ class KeystrokeTracker:
             "zscore_features": zscores,
             "feature_vector": vector[0].tolist(),
             "model_used": model_used,
-            "baseline_loaded_from_disk": self._baseline_loaded_from_disk,
-            "baseline_path": str(self.baseline_path),
-            "baseline_updated": bool(baseline_updated),
-            "baseline_update_count": int(self._baseline_update_count),
         }
 
 
@@ -487,12 +331,8 @@ def keystroke_stress_score(
         "dwell_mean_zscore": _safe_z(features["dwell_mean_ms"], baseline_means["dwell_mean_ms"], baseline_stds["dwell_mean_ms"]),
         "dwell_std_zscore": _safe_z(features["dwell_std_ms"], baseline_means["dwell_std_ms"], baseline_stds["dwell_std_ms"]),
         "latency_mean_zscore": _safe_z(features["latency_mean_ms"], baseline_means["latency_mean_ms"], baseline_stds["latency_mean_ms"]),
-        "latency_std_zscore": _safe_z(features.get("latency_std_ms", 0.0), baseline_means.get("latency_std_ms", 0.0), max(EPS, baseline_stds.get("latency_std_ms", 1.0))),
         "pause_freq_zscore": _safe_z(features["pause_freq"], baseline_means["pause_freq"], baseline_stds["pause_freq"]),
         "error_count_zscore": _safe_z(features["error_count"], baseline_means["error_count"], baseline_stds["error_count"]),
-        "backspace_rate_zscore": _safe_z(features.get("backspace_rate", 0.0), baseline_means.get("backspace_rate", 0.0), max(EPS, baseline_stds.get("backspace_rate", 1.0))),
-        "burst_ratio_zscore": _safe_z(features.get("burst_ratio", 0.0), baseline_means.get("burst_ratio", 0.0), max(EPS, baseline_stds.get("burst_ratio", 1.0))),
-        "key_variation_zscore": _safe_z(features.get("key_variation", 0.0), baseline_means.get("key_variation", 0.0), max(EPS, baseline_stds.get("key_variation", 1.0))),
     }
     zscores = {k: float(round(v, 4)) for k, v in zscores.items()}
     vector = np.array([[float(zscores[k]) for k in DEFAULT_FEATURE_ORDER]], dtype=float)
