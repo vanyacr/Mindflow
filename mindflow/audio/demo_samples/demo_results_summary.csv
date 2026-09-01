@@ -1,0 +1,8 @@
+Filename,Predicted Emotion,Confidence (%),Stress (%)
+sample_angry.wav,angry,99.6,2.2
+sample_disgust.wav,disgust,97.1,35.2
+sample_fear.wav,fear,95.3,33.0
+sample_happy.wav,angry,48.6,4.5
+sample_neutral.wav,neutral,99.7,0.4
+sample_sad.wav,fear,93.1,58.6
+sample_surprise.wav,surprise,97.7,0.0

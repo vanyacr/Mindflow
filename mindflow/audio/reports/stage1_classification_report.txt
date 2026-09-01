@@ -1,0 +1,16 @@
+MindFlow Stage 1 — Emotion Classification Report
+Datasets: CREMA-D, RAVDESS, SAVEE, TESS (speaker-disjoint validation split)
+
+              precision    recall  f1-score   support
+
+       happy      0.634     0.730     0.679       512
+         sad      0.585     0.571     0.578       424
+       angry      0.740     0.789     0.764       560
+        fear      0.592     0.618     0.605       322
+     neutral      0.699     0.630     0.663       671
+    surprise      0.557     0.487     0.520        80
+     disgust      0.658     0.569     0.610       318
+
+    accuracy                          0.658      2887
+   macro avg      0.638     0.628     0.631      2887
+weighted avg      0.658     0.658     0.657      2887

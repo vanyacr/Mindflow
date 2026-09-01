@@ -1,0 +1,31 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*.class
+
+# Large Model Checkpoints (>100MB blocked by GitHub)
+checkpoints/*.pt
+checkpoints/*.bin
+*.pt
+*.bin
+*.h5
+*.pkl
+*.zip
+*.tar
+*.gz
+
+# Raw & Processed Audio Datasets
+Audio/
+Datasets/
+processed/
+*.wav.part
+
+# Temp Recording Files
+temp_*.wav
+recorded_sample.wav
+temp.wav
+
+# Virtual Environments
+venv/
+.venv/
+env/

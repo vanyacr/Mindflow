@@ -1,0 +1,14 @@
+MindFlow Stage 2 — Stress Regression, 5-Fold Cross-Validation Summary
+Dataset: DAIC-WOZ (E-DAIC 2019), 266 sessions
+
+MAE: 0.205 +/- 0.012 (lower is better)
+Pearson Corr: 0.389 +/- 0.067 (higher is better)
+Binary Accuracy: 0.714 +/- 0.056 (higher is better)
+Binary F1: 0.498 +/- 0.048 (higher is better)
+
+Per-fold breakdown:
+  Fold 1: MAE=0.198 Corr=0.459 Acc=0.796 F1=0.560
+  Fold 2: MAE=0.202 Corr=0.396 Acc=0.717 F1=0.516
+  Fold 3: MAE=0.218 Corr=0.280 Acc=0.623 F1=0.412
+  Fold 4: MAE=0.188 Corr=0.454 Acc=0.736 F1=0.500
+  Fold 5: MAE=0.218 Corr=0.356 Acc=0.698 F1=0.500
