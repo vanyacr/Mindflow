@@ -1,0 +1,21 @@
+# Python bytecode & virtual environments
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+
+# Large model checkpoints (track via Git LFS or direct zip/drive transfer)
+checkpoints/*.pt
+checkpoints/*.csv
+
+# Local Student Profiles & Heads (Privacy by Design)
+profiles/*.json
+profiles/*.pt
+!profiles/.gitkeep
+
+# OS / Temporary Files
+.DS_Store
+Thumbs.db
+*.log

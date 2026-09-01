@@ -1,0 +1,11 @@
+torch
+torchvision
+timm
+albumentations
+mediapipe
+ultralytics
+opencv-python
+numpy
+pandas
+scikit-learn
+tqdm
