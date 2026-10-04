@@ -144,10 +144,14 @@ def _fallback_sentiment(text: str) -> Dict[str, float]:
         "confident",
         "hopeful",
         "productive",
+        "clear",
+        "steady",
+        "balanced",
     }
     negative_words = {
         "bad",
         "anxious",
+        "stress",
         "stressed",
         "depressed",
         "hopeless",
@@ -156,6 +160,12 @@ def _fallback_sentiment(text: str) -> Dict[str, float]:
         "tired",
         "frustrated",
         "panic",
+        "exam",
+        "deadlines",
+        "burnout",
+        "anxiety",
+        "pressure",
+        "exhausted",
     }
 
     tokens = re.findall(r"[a-z']+", normalized)
@@ -202,6 +212,7 @@ def detect_emotions(
     def score_label(label: str) -> float:
         keywords = EMOTION_KEYWORDS.get(label, ())
         score = 0.0
+
         for keyword in keywords:
             if " " in keyword:
                 score += 1.5 if keyword in normalized_text else 0.0
@@ -209,7 +220,39 @@ def detect_emotions(
                 normalized_keyword = _normalize_token(keyword)
                 score += float(token_counts.get(normalized_keyword, 0))
 
-        # Keep scores in a simple 0.0-1.0 range without extra dependencies.
+        if label in {"anxious", "stressed", "frustrated"}:
+            stress_terms = {
+                "deadline": 0.8,
+                "deadlines": 0.8,
+                "exam": 0.8,
+                "exams": 0.8,
+                "pressure": 0.7,
+                "overwhelmed": 0.9,
+                "panic": 1.0,
+                "stress": 1.0,
+                "burnout": 0.9,
+                "exhausted": 0.9,
+                "hopeless": 1.0,
+            }
+            for term, boost in stress_terms.items():
+                if term in normalized_text:
+                    score += boost
+
+        if label in {"calm", "motivated", "focused"}:
+            support_terms = {
+                "calm": 0.5,
+                "ready": 0.5,
+                "focus": 0.7,
+                "focused": 0.8,
+                "motivated": 0.8,
+                "improve": 0.7,
+                "consistent": 0.6,
+                "productive": 0.7,
+            }
+            for term, boost in support_terms.items():
+                if term in normalized_text:
+                    score += boost
+
         return round(min(score / 3.0, 1.0), 4)
 
     scores = {label: score_label(label) for label in labels}
