@@ -1,0 +1,843 @@
+<title>Mindflow Typing Study</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one calm reading column; a step rail on top that encodes the real study sequence; the typing panel is the only framed object. */
+:root {
+  --paper: #f3f5f7;
+  --surface: #ffffff;
+  --ink: #18212b;
+  --muted: #5b6876;
+  --line: #d6dde4;
+  --accent: #1d6a86;
+  --accent-ink: #ffffff;
+  --accent-soft: #e2eff4;
+  --pressure: #b4410f;
+  --pressure-soft: #fbe9df;
+  --ok: #2c7a4b;
+  --alarm-bg: #f6c9c0;
+  --alarm-bg-strong: #ee9f8f;
+  --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+  --step--1: 0.875rem;
+  --step-0: 1.0625rem;
+  --step-1: 1.3rem;
+  --step-2: 1.75rem;
+  --step-3: 2.4rem;
+  --radius: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --paper: #11161c;
+    --surface: #19212a;
+    --ink: #e4eaf0;
+    --muted: #97a4b2;
+    --line: #2c3743;
+    --accent: #5db4d3;
+    --accent-ink: #0c1a21;
+    --accent-soft: #17303b;
+    --pressure: #f08c55;
+    --pressure-soft: #3a2116;
+    --ok: #6cc893;
+    --alarm-bg: #3f1510;
+    --alarm-bg-strong: #64190f;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #11161c;
+  --surface: #19212a;
+  --ink: #e4eaf0;
+  --muted: #97a4b2;
+  --line: #2c3743;
+  --accent: #5db4d3;
+  --accent-ink: #0c1a21;
+  --accent-soft: #17303b;
+  --pressure: #f08c55;
+  --pressure-soft: #3a2116;
+  --ok: #6cc893;
+  --alarm-bg: #3f1510;
+  --alarm-bg-strong: #64190f;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: var(--step-0);
+  line-height: 1.55;
+  padding: 0 16px;
+  transition: background-color 0.6s;
+}
+body.pressure-mode { background: var(--alarm-bg); }
+body.pressure-mode.urgent { background: var(--alarm-bg-strong); }
+.wrap { max-width: 760px; margin: 0 auto; padding-block: 28px 64px; display: grid; gap: 28px; }
+
+header.top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.brand { font-family: var(--font-display); font-weight: 700; font-size: var(--step-1); letter-spacing: -0.01em; }
+.brand span { color: var(--accent); }
+.pid-chip { font-family: var(--font-mono); font-size: var(--step--1); color: var(--muted); }
+
+ol.rail { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; }
+ol.rail li { font-size: 0.75rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); display: grid; gap: 6px; }
+ol.rail li::before { content: ""; height: 4px; border-radius: 2px; background: var(--line); }
+ol.rail li.done::before { background: var(--accent); }
+ol.rail li.now { color: var(--ink); font-weight: 700; }
+ol.rail li.now::before { background: var(--accent); }
+ol.rail li.now.pressure::before { background: var(--pressure); }
+@media (max-width: 560px) { ol.rail li span { display: none; } }
+
+h1, h2 { font-family: var(--font-display); font-weight: 700; letter-spacing: -0.015em; line-height: 1.15; margin: 0; text-wrap: balance; }
+h1 { font-size: var(--step-3); }
+h2 { font-size: var(--step-2); }
+p { margin: 0; max-width: 65ch; }
+.stack { display: grid; gap: 14px; }
+.lede { font-size: var(--step-1); color: var(--muted); line-height: 1.4; }
+.eyebrow { font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+.eyebrow.pressure { color: var(--pressure); }
+
+.keep { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 560px) { .keep { grid-template-columns: 1fr; } }
+.keep div { border-top: 2px solid var(--line); padding-top: 10px; display: grid; gap: 6px; }
+.keep div.yes { border-color: var(--accent); }
+.keep h3 { margin: 0; font-size: var(--step--1); letter-spacing: 0.06em; text-transform: uppercase; }
+.keep ul { margin: 0; padding-left: 1.1em; color: var(--muted); }
+
+label { font-weight: 700; }
+input[type="text"], input[type="number"] {
+  font: inherit; color: var(--ink); background: var(--surface);
+  border: 1.5px solid var(--line); border-radius: 8px; padding: 10px 12px; width: 100%;
+}
+input:focus-visible, textarea:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.field { display: grid; gap: 6px; max-width: 320px; }
+.hint { font-size: var(--step--1); color: var(--muted); }
+.check { display: flex; gap: 10px; align-items: flex-start; font-weight: 400; }
+.check input { margin-top: 5px; width: 18px; height: 18px; accent-color: var(--accent); }
+
+button {
+  font: inherit; font-weight: 700; cursor: pointer; border-radius: 8px; padding: 11px 20px;
+  border: 1.5px solid var(--accent); background: var(--accent); color: var(--accent-ink);
+}
+button.ghost { background: transparent; color: var(--accent); }
+button:disabled { opacity: 0.45; cursor: not-allowed; }
+.actions { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+
+.warn { border-left: 4px solid var(--pressure); background: var(--pressure-soft); padding: 10px 14px; border-radius: 6px; }
+
+/* rating scale */
+.scale { display: grid; grid-template-columns: repeat(10, 1fr); gap: 6px; }
+.scale button { padding: 12px 0; background: var(--surface); color: var(--ink); border: 1.5px solid var(--line); font-family: var(--font-mono); }
+.scale button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.scale-ends { display: flex; justify-content: space-between; font-size: var(--step--1); color: var(--muted); }
+
+/* typing panel */
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; display: grid; gap: 14px; position: relative; }
+.panel.pressure { border-color: var(--pressure); }
+.prompt { font-family: var(--font-display); font-weight: 500; font-size: var(--step-1); line-height: 1.3; }
+textarea {
+  font: inherit; color: var(--ink); background: var(--paper); width: 100%; min-height: 170px; resize: vertical;
+  border: 1.5px solid var(--line); border-radius: 8px; padding: 12px 14px; line-height: 1.5;
+}
+.meta { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: var(--step--1); color: var(--muted); align-items: center; }
+.meter { height: 8px; background: var(--line); border-radius: 4px; overflow: hidden; }
+.meter i { display: block; height: 100%; width: 0; background: var(--accent); transition: width 0.3s; }
+.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.rhythm { display: grid; gap: 4px; }
+.rhythm canvas { width: 100%; height: 36px; display: block; }
+.rhythm small { color: var(--muted); font-size: 0.78rem; }
+
+.clock { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: var(--step-2); font-weight: 600; }
+.clock.pressure { color: var(--pressure); }
+.hud { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.hud div { display: grid; gap: 2px; }
+.hud span:first-child { font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.hud .num { font-size: var(--step-1); font-weight: 600; }
+.hud .bad { color: var(--pressure); }
+@media (max-width: 480px) { .hud { grid-template-columns: 1fr 1fr; } }
+
+.overlay { position: absolute; inset: 0; background: color-mix(in srgb, var(--surface) 92%, transparent); border-radius: var(--radius); display: grid; place-items: center; padding: 20px; }
+.mathbox { display: grid; gap: 10px; justify-items: center; text-align: center; }
+.mathbox .q { font-family: var(--font-mono); font-size: var(--step-3); font-weight: 600; }
+.mathbox input { max-width: 180px; text-align: center; font-family: var(--font-mono); font-size: var(--step-1); }
+.flash { font-weight: 700; color: var(--pressure); min-height: 1.5em; }
+.flash.ok { color: var(--ok); }
+@media (prefers-reduced-motion: no-preference) {
+  .panel.pressure.urgent { animation: pulse 0.9s ease-in-out infinite alternate; }
+  @keyframes pulse { from { box-shadow: 0 0 0 0 transparent; } to { box-shadow: 0 0 0 4px var(--pressure-soft); } }
+}
+
+fieldset.q { border: 0; margin: 0; padding: 0; display: grid; gap: 8px; }
+fieldset.q legend { font-weight: 700; padding: 0; margin-bottom: 4px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chips label { font-weight: 400; display: inline-flex; align-items: center; gap: 6px; border: 1.5px solid var(--line); background: var(--surface); border-radius: 999px; padding: 6px 14px; cursor: pointer; }
+.chips label:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+.chips input { accent-color: var(--accent); margin: 0; }
+.survey { display: grid; gap: 22px; }
+.inline { display: flex; gap: 12px; align-items: end; flex-wrap: wrap; }
+select { font: inherit; color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+.code { font-family: var(--font-mono); font-size: 0.8rem; width: 100%; min-height: 120px; word-break: break-all; background: var(--paper); }
+dl.summary { display: grid; grid-template-columns: auto 1fr; gap: 6px 18px; margin: 0; }
+dl.summary dt { color: var(--muted); }
+dl.summary dd { margin: 0; }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">Mindflow <span>typing study</span></div>
+    <div class="pid-chip" id="pidChip"></div>
+  </header>
+
+  <ol class="rail" id="rail" aria-label="Study steps">
+    <li data-step="consent"><span>Consent</span></li>
+    <li data-step="mood1"><span>Mood</span></li>
+    <li data-step="warmup"><span>Warm-up</span></li>
+    <li data-step="calm"><span>Calm</span></li>
+    <li data-step="pressure"><span>Pressure</span></li>
+    <li data-step="mood2"><span>Mood</span></li>
+    <li data-step="survey"><span>Survey</span></li>
+    <li data-step="done"><span>Done</span></li>
+  </ol>
+
+  <!-- 1. Consent -->
+  <section id="s-consent" class="stack">
+    <p class="eyebrow">About 15 minutes · laptop or desktop keyboard</p>
+    <h1>Help test a stress detector that reads typing rhythm, not words</h1>
+    <p class="lede">You'll type short answers to everyday questions: first relaxed, then under time pressure with quick maths checks. The page measures how you type, then gives you a code to send back.</p>
+    <div class="keep">
+      <div class="yes">
+        <h3>What is kept</h3>
+        <ul>
+          <li>Timing numbers: how long keys are held, gaps between keys, pauses, backspace rate</li>
+          <li>Your 1–10 stress ratings and multiple-choice survey answers</li>
+          <li>The participant code and session number you enter below</li>
+        </ul>
+      </div>
+      <div>
+        <h3>What is never kept</h3>
+        <ul>
+          <li>Anything you type. Text stays in this page and is erased</li>
+          <li>Your name, email, or which keys you pressed</li>
+          <li>Your maths answers</li>
+        </ul>
+      </div>
+    </div>
+    <p><strong>Turn your sound on.</strong> The pressure round turns the screen red and uses ticking and beeps. If that would be a problem for you (for example, sensitivity to flashing or loud sounds), please don't take part.</p>
+    <p>Taking part is voluntary. You can stop at any time by closing this page, and nothing is sent unless you send the code yourself. The pressure round is designed to be hard; nobody sees how well you did.</p>
+    <div id="deviceWarn" class="warn" hidden>This study needs a laptop or desktop keyboard. Phone and tablet keyboards don't report key timing, so please open this file on a laptop.</div>
+    <div class="inline">
+      <div class="field">
+        <label for="pid">Participant code</label>
+        <input type="text" id="pid" maxlength="12" autocomplete="off" placeholder="e.g. P07">
+      </div>
+      <div class="field">
+        <label for="sess">Session</label>
+        <select id="sess">
+          <option value="1">1 (first time)</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+        </select>
+      </div>
+      <button type="button" class="ghost" id="soundTest">Test sound</button>
+    </div>
+    <span class="hint">Use the code the researcher gave you, not your name. Pick the session number they told you.</span>
+    <label class="check" for="agree"><input type="checkbox" id="agree"> I've read the above and agree to take part.</label>
+    <div class="actions"><button id="startBtn" disabled>Start</button></div>
+  </section>
+
+  <!-- Mood rating (reused) -->
+  <section id="s-rating" class="stack" hidden>
+    <p class="eyebrow" id="ratingEyebrow">Quick check</p>
+    <h2 id="ratingTitle">How stressed do you feel right now?</h2>
+    <div class="scale" id="scale" role="group" aria-label="Stress rating from 1 to 10"></div>
+    <div class="scale-ends"><span>1 · completely relaxed</span><span>10 · extremely stressed</span></div>
+    <div class="actions"><button id="ratingNext" disabled>Continue</button></div>
+  </section>
+
+  <!-- Typing rounds (warm-up and calm) -->
+  <section id="s-typing" class="stack" hidden>
+    <p class="eyebrow" id="typeEyebrow">Warm-up</p>
+    <h2 id="typeTitle">Type naturally, the way you usually do</h2>
+    <p id="typeLede" class="lede"></p>
+    <div class="panel">
+      <div class="prompt" id="typePrompt"></div>
+      <textarea id="typeBox" spellcheck="false" autocomplete="off" aria-label="Your answer"></textarea>
+      <div class="rhythm" aria-hidden="true"><canvas id="rhythmCanvas"></canvas><small>Key rhythm being measured. Only these timings are kept.</small></div>
+      <div class="meter" aria-hidden="true"><i id="typeMeter"></i></div>
+      <div class="meta">
+        <span id="typeProgress" class="num"></span>
+        <button class="ghost" id="nextPrompt">Next question</button>
+      </div>
+    </div>
+    <div id="unidWarn" class="warn" hidden>Your keyboard isn't reporting keys. If you're on a phone or tablet, please switch to a laptop.</div>
+    <div class="actions"><button id="typeDone" disabled>Continue</button><span class="hint" id="typeDoneHint"></span></div>
+  </section>
+
+  <!-- Pressure round -->
+  <section id="s-pressure" class="stack" hidden>
+    <p class="eyebrow pressure">Pressure round · 3 minutes</p>
+    <h2>Answer fast. Write at least 25 words before the question timer runs out.</h2>
+    <p class="lede">Maths checks will interrupt you. Answer each one before its timer ends. The target is 5 full answers and 90% maths correct.</p>
+    <div class="hud">
+      <div><span>Round left</span><span class="num" id="roundClock">3:00</span></div>
+      <div><span>Answers done</span><span class="num" id="answersDone">0 / 5</span></div>
+      <div><span>Maths correct</span><span class="num" id="mathScore">0 / 0</span></div>
+    </div>
+    <div class="panel pressure" id="pressurePanel">
+      <div class="meta"><span class="prompt" id="pressPrompt"></span><span class="clock pressure" id="promptClock">35</span></div>
+      <textarea id="pressBox" spellcheck="false" autocomplete="off" aria-label="Your answer"></textarea>
+      <div class="meta"><span>Words: <span class="num" id="wordCount">0</span> / 25</span><span class="flash" id="pressFlash" role="status"></span></div>
+      <div class="overlay" id="mathOverlay" hidden>
+        <form class="mathbox" id="mathForm">
+          <span class="eyebrow pressure">Maths check · <span class="num" id="mathClock">9</span>s</span>
+          <span class="q" id="mathQ"></span>
+          <input type="number" id="mathA" inputmode="numeric" aria-label="Answer">
+          <button type="submit">Submit</button>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- Survey -->
+  <section id="s-survey" class="stack" hidden>
+    <p class="eyebrow">Last step · 1 minute</p>
+    <h2>A few quick questions about you and the round you just did</h2>
+    <p class="hint">Multiple choice only. Skip any you prefer not to answer.</p>
+    <form class="survey" id="surveyForm"></form>
+    <div class="actions"><button id="surveyDone">Finish and get my code</button></div>
+  </section>
+
+  <!-- Done -->
+  <section id="s-done" class="stack" hidden>
+    <p class="eyebrow">Finished, thank you</p>
+    <h2>Send this code to the person running the study</h2>
+    <p>The pressure round was made to be difficult on purpose, and your maths score isn't part of the results. The code below contains only timing numbers and your ratings.</p>
+    <dl class="summary" id="summary"></dl>
+    <textarea class="code" id="codeBox" readonly aria-label="Result code"></textarea>
+    <div class="actions">
+      <button id="copyBtn">Copy code</button>
+      <button class="ghost" id="saveBtn" hidden>Save as file</button>
+      <span class="hint" id="copyMsg" role="status"></span>
+    </div>
+    <p class="hint">Paste it into WhatsApp or email as one message. Then you can close this page.</p>
+  </section>
+</div>
+
+<script>
+(() => {
+  // ---------- constants shared with KEYSTROKE/features.py ----------
+  // FEATURES-BEGIN (tests/test_study.py runs this block in Node and compares it with Python)
+  const KEYS_PER_CHUNK = 50;
+  const PAUSE_MS = 1000, IDLE_MS = 10000;
+  // FEATURES-PAUSE
+  const WARMUP_KEYS = 600;                  // 12 chunks of 50 (study/analyze_study.py WARMUP_CHUNKS)
+  const CALM_SECONDS = 180, PRESSURE_SECONDS = 180;
+  const PROMPT_SECONDS = 35, MIN_WORDS = 25;
+  // Adaptive maths (as in the MIST stress task): a correct answer makes the next
+  // sum harder and shorter, a miss makes it easier and longer, so everyone hovers
+  // around 50% correct - stressful, but nobody gives up.
+  const rnd = (lo, hi) => lo + Math.floor(Math.random() * (hi - lo + 1));
+  const MATH_LEVELS = [
+    { secs: 10, make: () => { const a = rnd(11, 49), b = rnd(2, 9); return [a + " + " + b, a + b]; } },
+    { secs: 9,  make: () => { const a = rnd(13, 69), b = rnd(11, 29); return [a + " + " + b, a + b]; } },
+    { secs: 8,  make: () => { const a = rnd(41, 99), b = rnd(12, 39); return [a + " − " + b, a - b]; } },
+    { secs: 8,  make: () => { const a = rnd(12, 25), b = rnd(3, 7); return [a + " × " + b, a * b]; } },
+    { secs: 7,  make: () => { const a = rnd(12, 39), b = rnd(3, 8), c = rnd(7, 40); return [a + " × " + b + " − " + c, a * b - c]; } },
+  ];
+  let mathLevel = 1;
+
+  const WARMUP_PROMPTS = [
+    "If you could have dinner with any person, alive or not, who would it be and what would you ask?",
+    "Describe the best trip or day out you've ever had.",
+    "You win a lottery tomorrow. What are the first five things you do?",
+    "What's a film or series everyone should watch, and why?",
+    "If you could master one skill instantly, what would it be and why?",
+    "Describe your perfect weekend from morning to night.",
+    "What's the funniest thing that happened to you in college so far?",
+    "If you could live in any city in the world for a year, which and why?",
+    "Describe a food you could eat every day without getting bored.",
+    "What would you build if you had unlimited money and a team of engineers?",
+    "Describe a teacher or person who changed how you think.",
+    "What's something you believed as a kid that turned out to be wrong?",
+  ];
+  const CALM_PROMPTS = [
+    "Describe a peaceful place you like to be, using all five senses.",
+    "Write about a meal you really enjoyed and who you shared it with.",
+    "What are you looking forward to this month?",
+    "Describe a song that relaxes you and when you listen to it.",
+    "Write about a good memory with a friend.",
+    "Describe the view from a window you know well.",
+  ];
+  const PRESSURE_PROMPTS = [
+    "Argue for or against exams being open-book.",
+    "Explain how the internet works to a ten-year-old.",
+    "List everything you would pack for a week-long trip, and why.",
+    "Describe how to solve a problem you faced recently.",
+    "Should college attendance be compulsory? Give reasons.",
+    "Explain the rules of a sport or game you know.",
+    "Describe your plan for the next five years.",
+    "What would you change about your college, and how?",
+    "Compare living in a city with living in a village.",
+    "Explain why sleep matters for students.",
+  ];
+
+  // Multiple-choice survey (answers are stored as short codes in the result).
+  const SURVEY = [
+    { id: "sleep", q: "How many hours did you sleep last night?", a: ["<5", "5-6", "7-8", ">8"] },
+    { id: "caffeine", q: "Coffee, tea or an energy drink in the last 2 hours?", a: ["Yes", "No"] },
+    { id: "deadline", q: "Do you have an exam or deadline in the next 3 days?", a: ["Yes", "No"] },
+    { id: "typing_hours", q: "How many hours a day do you type on a laptop?", a: ["<1", "1-3", "3-6", ">6"] },
+    { id: "touch_type", q: "Do you type without looking at the keys?", a: ["Yes", "Partly", "No"] },
+    { id: "worst", q: "What made the pressure round most stressful?", a: ["Timer", "Maths", "Red screen and beeps", "Word target", "Nothing"] },
+    { id: "real_life", q: "When you're stressed in real life, how does your typing change?", a: ["Faster", "Slower", "More mistakes", "No change", "Not sure"] },
+    { id: "hand", q: "Which hand do you write with?", a: ["Right", "Left", "Both"] },
+  ];
+
+  // ---------- sound (Web Audio; started on the Start click so browsers allow it) ----------
+  let audio = null;
+  function initAudio() {
+    try {
+      audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+      if (audio.state === "suspended") audio.resume();
+    } catch (_) { audio = null; }
+  }
+  function beep(freq, ms, vol = 0.15, type = "sine") {
+    if (!audio) return;
+    const t = audio.currentTime, o = audio.createOscillator(), g = audio.createGain();
+    o.type = type; o.frequency.value = freq;
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + ms / 1000);
+    o.connect(g).connect(audio.destination);
+    o.start(t); o.stop(t + ms / 1000 + 0.02);
+  }
+  const tickSound = () => beep(1200, 25, 0.05, "square");
+  const warnBeep = () => beep(880, 120, 0.18);
+  const buzz = () => beep(170, 320, 0.25, "sawtooth");
+  const alertBeep = () => { beep(660, 90, 0.18); setTimeout(() => beep(990, 120, 0.18), 120); };
+
+  // ---------- state ----------
+  const S = {
+    pid: "", session: 1, survey: {}, ratings: {}, math: { shown: 0, correct: 0 }, unid: 0,
+    phases: { warmup: { recs: [], t0: 0, t1: 0 }, calm: { recs: [], t0: 0, t1: 0 }, pressure: { recs: [], t0: 0, t1: 0 } },
+    current: null,
+  };
+  const $ = (id) => document.getElementById(id);
+  const coarse = matchMedia("(pointer: coarse)").matches && !matchMedia("(any-pointer: fine)").matches;
+  if (coarse) $("deviceWarn").hidden = false;
+
+  // ---------- step rail ----------
+  const ORDER = ["consent", "mood1", "warmup", "calm", "pressure", "mood2", "survey", "done"];
+  function setStep(step) {
+    const idx = ORDER.indexOf(step);
+    document.querySelectorAll("#rail li").forEach((li, i) => {
+      li.classList.toggle("done", i < idx);
+      li.classList.toggle("now", i === idx);
+      li.classList.toggle("pressure", li.dataset.step === "pressure");
+      if (i === idx) li.setAttribute("aria-current", "step"); else li.removeAttribute("aria-current");
+    });
+  }
+  function show(id) {
+    ["s-consent", "s-rating", "s-typing", "s-pressure", "s-survey", "s-done"].forEach((s) => ($(s).hidden = s !== id));
+    window.scrollTo({ top: 0 });
+  }
+
+  // ---------- keystroke capture: category + timing only ----------
+  function category(e) {
+    if (e.key === "Backspace" || e.key === "Delete") return "backspace";
+    if (e.key === " ") return "space";
+    if (e.key && e.key.length === 1) return "char";
+    if (e.key === "Unidentified" || e.key === "Process") S.unid++;
+    return "other";
+  }
+  function attachRecorder(el) {
+    let pressed = new Map();
+    el.addEventListener("keydown", (e) => {
+      if (!S.current || e.repeat) return;
+      const id = e.code || e.key;
+      if (!pressed.has(id)) pressed.set(id, { t: performance.now(), c: category(e) });
+    });
+    el.addEventListener("keyup", (e) => {
+      const id = e.code || e.key;
+      const p = pressed.get(id);
+      if (!p) return;
+      pressed.delete(id);
+      if (!S.current) return;
+      const r = performance.now();
+      S.phases[S.current].recs.push({ c: p.c, p: p.t, r });
+      drawRhythm(S.phases[S.current].recs);
+      onKey();
+    });
+    el.addEventListener("blur", () => { pressed = new Map(); });
+    el.addEventListener("paste", (e) => e.preventDefault());
+    el.addEventListener("drop", (e) => e.preventDefault());
+  }
+  let onKey = () => {};
+
+  // FEATURES-RESUME
+  // ---------- features: mirror of KEYSTROKE/features.py extract_features ----------
+  const mean = (a) => a.reduce((s, x) => s + x, 0) / a.length;
+  const pstdev = (a) => { const m = mean(a); return Math.sqrt(mean(a.map((x) => (x - m) ** 2))); };
+  const r3 = (x) => Math.round(x * 1000) / 1000;
+  function extractFeatures(recs) {
+    recs = [...recs].sort((a, b) => a.p - b.p);
+    const n = recs.length;
+    if (n < 2) return null;
+    const dwells = recs.map((k) => Math.max(0, k.r - k.p));
+    const gaps = [];
+    for (let i = 1; i < n; i++) gaps.push(recs[i].p - recs[i - 1].p);
+    const active = gaps.filter((g) => g <= IDLE_MS);
+    const flights = active.filter((g) => g < PAUSE_MS);
+    const pauses = active.filter((g) => g >= PAUSE_MS);
+    const activeMin = active.reduce((s, g) => s + g, 0) / 60000;
+    const speed = activeMin > 0 ? active.length / activeMin : 0;
+    const back = recs.filter((k) => k.c === "backspace").length;
+    return [
+      r3(speed), r3(mean(dwells)), r3(pstdev(dwells)),
+      flights.length ? r3(mean(flights)) : 0, flights.length > 1 ? r3(pstdev(flights)) : 0,
+      r3(100 * pauses.length / n), r3(100 * back / n),
+    ];
+  }
+  function chunks(recs) {
+    const s = [...recs].sort((a, b) => a.p - b.p), out = [];
+    for (let i = 0; i + KEYS_PER_CHUNK <= s.length; i += KEYS_PER_CHUNK) out.push(extractFeatures(s.slice(i, i + KEYS_PER_CHUNK)));
+    return out;
+  }
+  // FEATURES-END
+  window.__mindflowFeatures = { extractFeatures, chunks }; // used by the repo's consistency test
+
+  // ---------- rhythm strip ----------
+  const canvas = $("rhythmCanvas");
+  function drawRhythm(recs) {
+    const dpr = window.devicePixelRatio || 1, w = canvas.clientWidth, h = canvas.clientHeight;
+    if (!w) return;
+    canvas.width = w * dpr; canvas.height = h * dpr;
+    const ctx = canvas.getContext("2d");
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, w, h);
+    const cs = getComputedStyle(document.documentElement);
+    const last = recs.slice(-80);
+    const bw = w / 80;
+    last.forEach((k, i) => {
+      const prev = i ? last[i - 1] : null;
+      const gap = prev ? Math.min(k.p - prev.p, 1200) : 0;
+      const bh = Math.max(2, (gap / 1200) * (h - 2));
+      ctx.fillStyle = k.c === "backspace" ? cs.getPropertyValue("--pressure").trim() : cs.getPropertyValue("--accent").trim();
+      ctx.fillRect(i * bw + 1, h - bh, Math.max(1, bw - 2), bh);
+    });
+  }
+
+  // ---------- consent ----------
+  const pidIn = $("pid"), agree = $("agree"), startBtn = $("startBtn");
+  const params = new URLSearchParams(location.search);
+  if (params.get("pid")) pidIn.value = params.get("pid");
+  if (["1", "2", "3", "4"].includes(params.get("s"))) $("sess").value = params.get("s");
+  $("soundTest").addEventListener("click", () => { initAudio(); alertBeep(); });
+  const validPid = () => /^[A-Za-z0-9_-]{1,12}$/.test(pidIn.value.trim());
+  const refreshStart = () => (startBtn.disabled = coarse || !(validPid() && agree.checked));
+  pidIn.addEventListener("input", refreshStart);
+  agree.addEventListener("change", refreshStart);
+  refreshStart();
+  startBtn.addEventListener("click", () => {
+    S.pid = pidIn.value.trim();
+    S.session = Number($("sess").value) || 1;
+    initAudio();
+    $("pidChip").textContent = "Participant " + S.pid + " · session " + S.session;
+    rating("start", "Before we begin", "How stressed do you feel right now?", "mood1", startWarmup);
+  });
+
+  // ---------- rating ----------
+  let ratingCb = null, ratingKey = null;
+  for (let i = 1; i <= 10; i++) {
+    const b = document.createElement("button");
+    b.type = "button"; b.textContent = i; b.setAttribute("aria-pressed", "false");
+    b.addEventListener("click", () => {
+      S.ratings[ratingKey] = i;
+      $("scale").querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+      $("ratingNext").disabled = false;
+    });
+    $("scale").appendChild(b);
+  }
+  function rating(key, eyebrow, title, step, next) {
+    ratingKey = key; ratingCb = next;
+    $("ratingEyebrow").textContent = eyebrow;
+    $("ratingTitle").textContent = title;
+    $("scale").querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", "false"));
+    $("ratingNext").disabled = true;
+    setStep(step); show("s-rating");
+  }
+  $("ratingNext").addEventListener("click", () => ratingCb && ratingCb());
+
+  // ---------- warm-up and calm rounds ----------
+  const typeBox = $("typeBox");
+  attachRecorder(typeBox);
+  let promptList = [], promptIdx = 0, typeTimer = null;
+  function nextPrompt() {
+    promptIdx = (promptIdx + 1) % promptList.length;
+    $("typePrompt").textContent = promptList[promptIdx];
+    typeBox.value = "";
+    typeBox.focus();
+  }
+  $("nextPrompt").addEventListener("click", nextPrompt);
+
+  function startWarmup() {
+    setStep("warmup"); show("s-typing");
+    $("typeEyebrow").textContent = "Warm-up · learns your normal typing";
+    $("typeTitle").textContent = "Type naturally, the way you usually do";
+    $("typeLede").textContent = "Answer in full sentences. Switch questions whenever you like. This round ends once about 600 keystrokes are recorded (3–5 minutes for most people).";
+    promptList = WARMUP_PROMPTS; promptIdx = -1; nextPrompt();
+    S.current = "warmup"; S.phases.warmup.t0 = Date.now();
+    $("typeDone").disabled = true;
+    $("typeDoneHint").textContent = "";
+    const update = () => {
+      const n = S.phases.warmup.recs.length;
+      $("typeMeter").style.width = Math.min(100, (n / WARMUP_KEYS) * 100) + "%";
+      $("typeProgress").textContent = Math.min(n, WARMUP_KEYS) + " / " + WARMUP_KEYS + " keystrokes";
+      $("unidWarn").hidden = !(S.unid > 30 && S.unid > n / 2);
+      if (n >= WARMUP_KEYS && $("typeDone").disabled) {
+        $("typeDone").disabled = false;
+        $("typeDoneHint").textContent = "Warm-up complete.";
+      }
+    };
+    onKey = update; update();
+    $("typeDone").onclick = () => { endPhase(); startCalm(); };
+  }
+
+  function startCalm() {
+    setStep("calm"); show("s-typing");
+    $("typeEyebrow").textContent = "Calm round · 3 minutes";
+    $("typeTitle").textContent = "Take your time. There are no right answers.";
+    $("typeLede").textContent = "Keep typing at a relaxed pace. The round ends by itself.";
+    promptList = CALM_PROMPTS; promptIdx = -1; nextPrompt();
+    S.current = "calm"; S.phases.calm.t0 = Date.now();
+    $("typeDone").disabled = true;
+    $("typeDoneHint").textContent = "";
+    $("typeMeter").style.width = "0%";
+    onKey = () => {};
+    const end = Date.now() + CALM_SECONDS * 1000;
+    const tick = () => {
+      const left = Math.max(0, Math.round((end - Date.now()) / 1000));
+      $("typeProgress").textContent = fmt(left) + " left · " + S.phases.calm.recs.length + " keystrokes";
+      $("typeMeter").style.width = (100 * (1 - left / CALM_SECONDS)) + "%";
+      if (left <= 0) {
+        clearInterval(typeTimer); endPhase();
+        rating("calm", "Calm round finished", "How stressed did you feel during that round?", "calm", startPressure);
+      }
+    };
+    clearInterval(typeTimer); typeTimer = setInterval(tick, 250); tick();
+  }
+  const fmt = (s) => Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+  function endPhase() {
+    if (S.current) S.phases[S.current].t1 = Date.now();
+    S.current = null;
+    typeBox.value = ""; $("pressBox").value = "";
+  }
+
+  // ---------- pressure round ----------
+  const pressBox = $("pressBox");
+  attachRecorder(pressBox);
+  let pTimer = null, pPromptIdx = -1, promptEnd = 0, roundEnd = 0, answers = 0, nextMathAt = 0, mathEnd = 0, mathAnswer = 0, mathOpen = false;
+  function nextPressPrompt(completed) {
+    if (completed) answers++;
+    pPromptIdx = (pPromptIdx + 1) % PRESSURE_PROMPTS.length;
+    $("pressPrompt").textContent = PRESSURE_PROMPTS[pPromptIdx];
+    pressBox.value = ""; $("wordCount").textContent = "0";
+    promptEnd = Date.now() + PROMPT_SECONDS * 1000;
+    $("answersDone").textContent = answers + " / 5";
+    $("answersDone").classList.toggle("bad", answers < 5);
+  }
+  function flash(msg, ok) {
+    const f = $("pressFlash");
+    f.textContent = msg; f.classList.toggle("ok", !!ok);
+    clearTimeout(flash.t); flash.t = setTimeout(() => (f.textContent = ""), 1800);
+  }
+  pressBox.addEventListener("input", () => {
+    const words = pressBox.value.trim().split(/\s+/).filter(Boolean).length;
+    $("wordCount").textContent = words;
+    if (words >= MIN_WORDS) { flash("Answer accepted", true); nextPressPrompt(true); }
+  });
+  function openMath() {
+    alertBeep();
+    const [question, answer] = MATH_LEVELS[mathLevel].make();
+    mathAnswer = answer;
+    $("mathQ").textContent = question;
+    $("mathA").value = "";
+    $("mathOverlay").hidden = false; mathOpen = true;
+    mathEnd = Date.now() + MATH_LEVELS[mathLevel].secs * 1000;
+    $("mathClock").textContent = MATH_LEVELS[mathLevel].secs;
+    S.math.shown++;
+    updateMathScore();
+    $("mathA").focus();
+  }
+  function closeMath(msg, ok) {
+    $("mathOverlay").hidden = true; mathOpen = false;
+    promptEnd += MATH_LEVELS[mathLevel].secs * 1000 * 0.5; // give back part of the time lost
+    mathLevel = Math.max(0, Math.min(MATH_LEVELS.length - 1, mathLevel + (ok ? 1 : -1)));
+    nextMathAt = Date.now() + (18 + Math.random() * 12) * 1000;
+    flash(msg, ok);
+    if (!ok) buzz();
+    pressBox.focus();
+  }
+  function updateMathScore() {
+    $("mathScore").textContent = S.math.correct + " / " + S.math.shown;
+    $("mathScore").classList.toggle("bad", S.math.shown > 0 && S.math.correct / S.math.shown < 0.9);
+  }
+  $("mathForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    if (!mathOpen) return;
+    const ok = Number($("mathA").value) === mathAnswer;
+    if (ok) S.math.correct++;
+    updateMathScore();
+    closeMath(ok ? "Correct" : "Wrong, the answer was " + mathAnswer, ok);
+  });
+  function startPressure() {
+    setStep("pressure"); show("s-pressure");
+    initAudio();
+    document.body.classList.add("pressure-mode");
+    let lastSecond = -1;
+    S.current = "pressure"; S.phases.pressure.t0 = Date.now();
+    answers = 0; pPromptIdx = -1; mathLevel = 1; nextPressPrompt(false);
+    roundEnd = Date.now() + PRESSURE_SECONDS * 1000;
+    nextMathAt = Date.now() + 15000;
+    pressBox.focus();
+    const tick = () => {
+      const now = Date.now();
+      const left = Math.max(0, Math.round((roundEnd - now) / 1000));
+      $("roundClock").textContent = fmt(left);
+      if (mathOpen) {
+        const ml = Math.max(0, Math.ceil((mathEnd - now) / 1000));
+        $("mathClock").textContent = ml;
+        if (ml <= 0) closeMath("Too slow, the answer was " + mathAnswer, false);
+      } else {
+        const pl = Math.max(0, Math.ceil((promptEnd - now) / 1000));
+        $("promptClock").textContent = pl;
+        $("pressurePanel").classList.toggle("urgent", pl <= 10);
+        document.body.classList.toggle("urgent", pl <= 10);
+        if (pl !== lastSecond) {
+          lastSecond = pl;
+          if (pl <= 10 && pl > 0) warnBeep(); else tickSound();
+        }
+        if (pl <= 0) { flash("Time's up, next question"); buzz(); nextPressPrompt(false); }
+        if (now >= nextMathAt && left > 8) openMath();
+      }
+      if (left <= 0) {
+        clearInterval(pTimer);
+        if (mathOpen) { $("mathOverlay").hidden = true; mathOpen = false; }
+        $("pressurePanel").classList.remove("urgent");
+        document.body.classList.remove("pressure-mode", "urgent");
+        endPhase();
+        rating("pressure", "Pressure round finished", "How stressed did you feel during that round?", "mood2", startSurvey);
+      }
+    };
+    clearInterval(pTimer); pTimer = setInterval(tick, 200); tick();
+  }
+
+  // ---------- survey ----------
+  const form = $("surveyForm");
+  SURVEY.forEach((item) => {
+    const fs = document.createElement("fieldset"); fs.className = "q";
+    const lg = document.createElement("legend"); lg.textContent = item.q; fs.appendChild(lg);
+    const chips = document.createElement("div"); chips.className = "chips";
+    item.a.forEach((ans, i) => {
+      const lab = document.createElement("label");
+      const inp = document.createElement("input");
+      inp.type = "radio"; inp.name = item.id; inp.value = ans; inp.id = item.id + "_" + i;
+      inp.addEventListener("change", () => (S.survey[item.id] = ans));
+      lab.append(inp, document.createTextNode(ans));
+      chips.appendChild(lab);
+    });
+    fs.appendChild(chips); form.appendChild(fs);
+  });
+  function startSurvey() { setStep("survey"); show("s-survey"); }
+  $("surveyDone").addEventListener("click", () => finish());
+
+  // ---------- result code ----------
+  function b64url(bytes) {
+    let s = "";
+    for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+    return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+  async function encode(obj) {
+    const json = new TextEncoder().encode(JSON.stringify(obj));
+    if (typeof CompressionStream === "function") {
+      try {
+        const stream = new Blob([json]).stream().pipeThrough(new CompressionStream("deflate-raw"));
+        const buf = new Uint8Array(await new Response(stream).arrayBuffer());
+        return "MF1z." + b64url(buf);
+      } catch (_) { /* fall through */ }
+    }
+    return "MF1j." + b64url(json);
+  }
+  function phaseOut(name) {
+    const ph = S.phases[name];
+    return { s: Math.round((ph.t1 - ph.t0) / 1000), k: ph.recs.length, c: chunks(ph.recs) };
+  }
+  let codeText = "";
+  async function finish() {
+    setStep("done"); show("s-done");
+    const out = {
+      v: 1, study: "mindflow-typing-1", pid: S.pid, session: S.session,
+      date: new Date().toISOString().slice(0, 10),
+      dev: { coarse, unid: S.unid },
+      r: { start: S.ratings.start, calm: S.ratings.calm, pressure: S.ratings.pressure },
+      m: { shown: S.math.shown, correct: S.math.correct },
+      q: S.survey,
+      p: { warmup: phaseOut("warmup"), calm: phaseOut("calm"), pressure: phaseOut("pressure") },
+    };
+    // Raw timings are no longer needed once chunk features exist.
+    Object.values(S.phases).forEach((ph) => (ph.recs = []));
+    codeText = await encode(out);
+    $("codeBox").value = codeText;
+    const sum = $("summary");
+    sum.replaceChildren();
+    [["Participant", out.pid + " (session " + out.session + ")"],
+     ["Warm-up", out.p.warmup.k + " keystrokes"],
+     ["Calm round", out.p.calm.k + " keystrokes"],
+     ["Pressure round", out.p.pressure.k + " keystrokes"],
+     ["Your ratings", out.r.start + " → " + out.r.calm + " → " + out.r.pressure + " (out of 10)"]].forEach(([k, v]) => {
+      const dt = document.createElement("dt"); dt.textContent = k;
+      const dd = document.createElement("dd"); dd.textContent = v;
+      sum.append(dt, dd);
+    });
+    setupSave();
+  }
+  $("copyBtn").addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(codeText);
+      $("copyMsg").textContent = "Copied. Paste it into your message.";
+    } catch (_) {
+      $("codeBox").focus(); $("codeBox").select();
+      let ok = false;
+      try { ok = document.execCommand("copy"); } catch (_) {}
+      $("copyMsg").textContent = ok ? "Copied. Paste it into your message." : "Press Ctrl+C to copy the selected code.";
+    }
+  });
+  async function setupSave() {
+    const fname = "mindflow_" + S.pid + ".txt";
+    let downloads = null;
+    if (window.claude && typeof window.claude.use === "function") {
+      try { downloads = await window.claude.use("downloads"); } catch (_) { downloads = null; }
+      if (!downloads) return; // inside the viewer without downloads: copying is the path
+      $("saveBtn").hidden = false;
+      $("saveBtn").onclick = async () => {
+        try { await downloads.save({ filename: fname, data: codeText }); $("copyMsg").textContent = "Saved."; }
+        catch (e) { $("copyMsg").textContent = e && e.code === "declined" ? "" : "Saving isn't available here. Use Copy code."; }
+      };
+      return;
+    }
+    // Standalone file or self-hosted page: a normal download link works.
+    $("saveBtn").hidden = false;
+    $("saveBtn").onclick = () => {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([codeText], { type: "text/plain" }));
+      a.download = fname; a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    };
+  }
+
+  setStep("consent");
+})();
+</script>
