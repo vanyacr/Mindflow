@@ -163,6 +163,19 @@ textarea {
 
 .clock { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: var(--step-2); font-weight: 600; }
 .clock.pressure { color: var(--pressure); }
+/* Pressure round: a large question timer that pulses every second and grows in the last 10 s. */
+#promptClock { font-size: 3.2rem; line-height: 1; min-width: 2.2ch; text-align: right; transition: font-size 0.2s; transform-origin: right center; }
+#promptClock.urgent { font-size: 4rem; color: var(--pressure); text-shadow: 0 0 18px var(--pressure-soft); }
+#roundClock { font-size: var(--step-2); }
+.qhead { display: grid; grid-template-columns: 1fr auto; gap: 18px; align-items: start; }
+.qhead .prompt { color: var(--ink); }
+.timerbox { display: grid; justify-items: end; gap: 2px; }
+.timerlabel { font-size: 0.75rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--pressure); font-weight: 700; text-align: right; max-width: 11ch; line-height: 1.25; }
+@media (max-width: 520px) { .qhead { grid-template-columns: 1fr; } .timerbox { justify-items: start; } .timerlabel { text-align: left; max-width: none; } }
+@media (prefers-reduced-motion: no-preference) {
+  #promptClock.beat { animation: beat 0.45s ease-out; }
+  @keyframes beat { from { transform: scale(1.25); } to { transform: scale(1); } }
+}
 .hud { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 .hud div { display: grid; gap: 2px; }
 .hud span:first-child { font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
@@ -315,7 +328,10 @@ dl.summary dd { margin: 0; }
       <div><span>Maths correct</span><span class="num" id="mathScore">0 / 0</span></div>
     </div>
     <div class="panel pressure" id="pressurePanel">
-      <div class="meta"><span class="prompt" id="pressPrompt"></span><span class="clock pressure" id="promptClock">35</span></div>
+      <div class="qhead">
+        <span class="prompt" id="pressPrompt"></span>
+        <div class="timerbox"><span class="clock pressure" id="promptClock">35</span><span class="timerlabel" id="timerLabel">seconds to finish this answer</span></div>
+      </div>
       <textarea id="pressBox" spellcheck="false" autocomplete="off" aria-label="Your answer"></textarea>
       <div class="bigcount" id="bigCount" hidden aria-hidden="true"></div>
       <div class="meta"><span>Words: <span class="num" id="wordCount">0</span> / 25</span><span class="flash" id="pressFlash" role="status"></span></div>
@@ -862,7 +878,13 @@ dl.summary dd { margin: 0; }
         if (ml <= 0) closeMath("Too slow, the answer was " + mathAnswer, false);
       } else {
         const pl = Math.max(0, Math.ceil((promptEnd - now) / 1000));
-        $("promptClock").textContent = pl;
+        const clock = $("promptClock");
+        if (clock.textContent !== String(pl)) {
+          clock.textContent = pl;
+          clock.classList.toggle("urgent", pl <= 10);
+          $("timerLabel").textContent = pl <= 10 ? "hurry, finish your answer now!" : "seconds to finish this answer";
+          clock.classList.remove("beat"); void clock.offsetWidth; clock.classList.add("beat");
+        }
         $("pressurePanel").classList.toggle("urgent", pl <= 10);
         document.body.classList.toggle("urgent", pl <= 10);
         if (pl !== lastSecond) {
