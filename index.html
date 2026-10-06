@@ -287,7 +287,7 @@ dl.summary dd { margin: 0; }
       <div class="meter" aria-hidden="true"><i id="typeMeter"></i></div>
       <div class="meta">
         <span id="typeProgress" class="num"></span>
-        <button class="ghost" id="nextPrompt">Skip question</button>
+        <span class="actions"><button class="ghost" id="skipPrompt">Skip question</button><button id="nextPrompt" disabled>Next question</button></span>
       </div>
     </div>
     <div id="unidWarn" class="warn" hidden>Your keyboard isn't reporting keys. If you're on a phone or tablet, please switch to a laptop.</div>
@@ -691,13 +691,17 @@ dl.summary dd { margin: 0; }
     promptIdx = (promptIdx + 1) % promptList.length;
     $("typePrompt").textContent = "Question " + (promptIdx + 1) + ": " + promptList[promptIdx];
     typeBox.value = "";
+    $("nextPrompt").disabled = true;
     typeBox.focus();
   }
+  const MIN_WORDS_FOR_NEXT = 5;
+  $("skipPrompt").addEventListener("click", nextPrompt);
   $("nextPrompt").addEventListener("click", nextPrompt);
   // After a full answer, the next question appears by itself.
   typeBox.addEventListener("input", () => {
     if (!S.current) return;
     const words = typeBox.value.trim().split(/\s+/).filter(Boolean).length;
+    $("nextPrompt").disabled = words < MIN_WORDS_FOR_NEXT;
     if (words >= WORDS_PER_ANSWER) {
       $("typeDoneHint").textContent = "Nice answer. Here's the next question.";
       nextPrompt();
@@ -708,7 +712,7 @@ dl.summary dd { margin: 0; }
     setStep("warmup"); show("s-typing");
     $("typeEyebrow").textContent = "Warm-up · learns your normal typing";
     $("typeTitle").textContent = "Type naturally, the way you usually do";
-    $("typeLede").textContent = "A new question appears after each answer (about 40 words). Moves on by itself at 600 keystrokes.";
+    $("typeLede").textContent = "Press Next question when you're done, or keep writing and it changes by itself at about 40 words. Moves on to the next round at 600 keystrokes.";
     promptList = WARMUP_PROMPTS; promptIdx = -1; nextPrompt();
     S.current = "warmup"; S.phases.warmup.t0 = Date.now();
     $("typeDoneHint").textContent = "";
