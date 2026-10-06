@@ -195,11 +195,12 @@ textarea {
   @keyframes pop { from { transform: scale(1.35); opacity: 1; } to { transform: scale(1); opacity: 0.6; } }
 }
 .overlay { position: absolute; inset: 0; background: color-mix(in srgb, var(--surface) 92%, transparent); border-radius: var(--radius); display: grid; place-items: center; padding: 20px; }
-.mathbox { display: grid; gap: 10px; justify-items: center; text-align: center; }
-.mathbox .q { font-family: var(--font-mono); font-size: var(--step-3); font-weight: 600; }
-.mathopts { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin: 0; padding: 0; list-style: none; }
-.mathopts li { font-family: var(--font-mono); font-size: var(--step-1); font-weight: 600; border: 1.5px dashed var(--line); border-radius: 8px; padding: 6px 14px; user-select: none; cursor: default; }
-.mathbox input { max-width: 180px; text-align: center; font-family: var(--font-mono); font-size: var(--step-1); }
+.pace { position: relative; height: 10px; border-radius: 5px; background: var(--line); overflow: visible; }
+.pace i { position: absolute; inset: 0 auto 0 0; width: 0; border-radius: 5px; background: var(--ok); transition: width 0.2s; }
+.pace.behind i { background: var(--pressure); }
+.pace b { position: absolute; top: -4px; bottom: -4px; width: 3px; left: 0; background: var(--ink); border-radius: 2px; }
+#paceState.bad { color: var(--pressure); }
+.memo { font-family: var(--font-mono); font-size: var(--step-2); font-weight: 600; letter-spacing: 0.35em; color: var(--ink); margin: 0; }
 .flash { font-weight: 700; color: var(--pressure); min-height: 1.5em; }
 .flash.ok { color: var(--ok); }
 @media (prefers-reduced-motion: no-preference) {
@@ -326,17 +327,18 @@ dl.summary dd { margin: 0; }
       <p class="eyebrow" id="readyEyebrow"></p>
       <h2 id="readyTitle"></h2>
       <p class="lede" id="readyText"></p>
+      <p class="memo" id="readyExtra" hidden></p>
       <span class="count" id="readyCount" aria-live="polite"></span>
     </div>
   </section>
 
   <!-- Pressure round -->
   <section id="s-pressure" class="stack round" hidden>
-    <p class="eyebrow pressure">Pressure round · 25 words before the timer hits 0 · target 5 answers, 90% maths</p>
+    <p class="eyebrow pressure">Pressure round · 20 words before the timer hits 0 · every question gets less time</p>
     <div class="hud">
       <div><span>Round left</span><span class="num" id="roundClock">3:00</span></div>
-      <div><span>Answers done</span><span class="num" id="answersDone">0 / 5</span></div>
-      <div><span>Maths correct</span><span class="num" id="mathScore">0 / 0</span></div>
+      <div><span>Answers done</span><span class="num" id="answersDone">0 / 6</span></div>
+      <div><span>Your pace</span><span class="num" id="paceState">On pace</span></div>
     </div>
     <div class="panel pressure" id="pressurePanel">
       <div class="qhead">
@@ -345,18 +347,19 @@ dl.summary dd { margin: 0; }
       </div>
       <textarea id="pressBox" spellcheck="false" autocomplete="off" aria-label="Your answer"></textarea>
       <div class="bigcount" id="bigCount" hidden aria-hidden="true"></div>
-      <div class="meta"><span>Words: <span class="num" id="wordCount">0</span> / 25</span><span class="flash" id="pressFlash" role="status"></span></div>
-      <div class="overlay" id="mathOverlay" hidden>
-        <form class="mathbox" id="mathForm">
-          <span class="eyebrow pressure">Maths check · <span class="num" id="mathClock">9</span>s</span>
-          <span class="q" id="mathQ"></span>
-          <ul class="mathopts" id="mathOpts" aria-label="Possible answers"></ul>
-          <span class="hint">Type the correct answer and press Enter</span>
-          <input type="number" id="mathA" inputmode="numeric" aria-label="Your answer" placeholder="Answer">
-          <button type="submit">Submit</button>
-        </form>
-      </div>
+      <div class="pace" aria-hidden="true"><i id="paceYou"></i><b id="paceNeed"></b></div>
+      <div class="meta"><span>Words: <span class="num" id="wordCount">0</span> / 20 · stay ahead of the white line</span><span class="flash" id="pressFlash" role="status"></span></div>
     </div>
+  </section>
+
+  <!-- Number recall (after the pressure round) -->
+  <section id="s-recall" class="stack" hidden>
+    <p class="eyebrow pressure">Pressure round finished</p>
+    <h2>What was the number you had to remember?</h2>
+    <form class="inline" id="recallForm">
+      <div class="field"><label for="memA">Number</label><input type="text" id="memA" inputmode="numeric" autocomplete="off" maxlength="12"></div>
+      <button type="submit">Continue</button>
+    </form>
   </section>
 
   <!-- Survey -->
@@ -395,19 +398,10 @@ dl.summary dd { margin: 0; }
   // FEATURES-PAUSE
   const WARMUP_KEYS = 600;                  // 12 chunks of 50 (study/analyze_study.py WARMUP_CHUNKS)
   const CALM_SECONDS = 180, PRESSURE_SECONDS = 180;
-  const PROMPT_SECONDS = 35, MIN_WORDS = 25;
-  // Adaptive maths (as in the MIST stress task): a correct answer makes the next
-  // sum harder and shorter, a miss makes it easier and longer, so everyone hovers
-  // around 50% correct - stressful, but nobody gives up.
+  // Pressure round: easy questions, so people keep typing; the stress comes from
+  // time that shrinks every question, a pace bar, sounds and a number to remember.
+  const QUESTION_SECONDS = [40, 35, 30, 25, 20], MIN_WORDS = 20, ANSWER_TARGET = 6;
   const rnd = (lo, hi) => lo + Math.floor(Math.random() * (hi - lo + 1));
-  const MATH_LEVELS = [
-    { secs: 10, make: () => { const a = rnd(11, 49), b = rnd(2, 9); return [a + " + " + b, a + b]; } },
-    { secs: 9,  make: () => { const a = rnd(13, 69), b = rnd(11, 29); return [a + " + " + b, a + b]; } },
-    { secs: 8,  make: () => { const a = rnd(41, 99), b = rnd(12, 39); return [a + " − " + b, a - b]; } },
-    { secs: 8,  make: () => { const a = rnd(12, 25), b = rnd(3, 7); return [a + " × " + b, a * b]; } },
-    { secs: 7,  make: () => { const a = rnd(12, 39), b = rnd(3, 8), c = rnd(7, 40); return [a + " × " + b + " − " + c, a * b - c]; } },
-  ];
-  let mathLevel = 1;
 
   const WARMUP_PROMPTS = [
     "You wake up and you're the Principal of your college for one day. What are the first three things you change?",
@@ -432,16 +426,16 @@ dl.summary dd { margin: 0; }
     "If you had a free afternoon with no phone and no work, how would you spend it?",
   ];
   const PRESSURE_PROMPTS = [
-    "Your phone is at 1% battery and you can send ONE message. Who do you send it to, and what does it say?",
-    "Convince an alien in 35 seconds why humans should NOT be destroyed.",
-    "Your professor cancelled tomorrow's exam! Write the message you send to the class group.",
-    "Sell me this pen. Make me want to buy it right now!",
-    "Plan a birthday party for your best friend with only ₹500.",
-    "Defend this: 'Group projects should be banned in college.'",
-    "You're stuck in a lift for 10 minutes with your favourite celebrity. What happens?",
-    "Explain why the sky is blue to a five-year-old who keeps asking 'why?'",
-    "Invent a new festival. What is it called and how do people celebrate it?",
-    "The canteen is closing forever. Write a speech to save it.",
+    "What did you eat yesterday? Go meal by meal.",
+    "Describe your route from home to college, step by step.",
+    "List everything that's in your bag or on your desk right now.",
+    "Explain how to make Maggi or tea, step by step.",
+    "What did you do last Sunday, from morning to night?",
+    "Describe your best friend: looks, habits, funny things.",
+    "Describe the last movie or series you watched.",
+    "What apps are on your phone's home screen, and what do you use them for?",
+    "Describe your bedroom in as much detail as you can.",
+    "Plan your next weekend, hour by hour.",
   ];
 
   // Multiple-choice survey (answers are stored as short codes in the result).
@@ -451,7 +445,7 @@ dl.summary dd { margin: 0; }
     { id: "deadline", q: "Do you have an exam or deadline in the next 3 days?", a: ["Yes", "No"] },
     { id: "typing_hours", q: "How many hours a day do you type on a laptop?", a: ["<1", "1-3", "3-6", ">6"] },
     { id: "touch_type", q: "Do you type without looking at the keys?", a: ["Yes", "Partly", "No"] },
-    { id: "worst", q: "What made the pressure round most stressful?", a: ["Timer", "Maths", "Red screen and beeps", "Word target", "Nothing"] },
+    { id: "worst", q: "What made the pressure round most stressful?", a: ["Shrinking timer", "Keeping pace", "Remembering the number", "Red screen and beeps", "Nothing"] },
     { id: "real_life", q: "When you're stressed in real life, how does your typing change?", a: ["Faster", "Slower", "More mistakes", "No change", "Not sure"] },
     { id: "hand", q: "Which hand do you write with?", a: ["Right", "Left", "Both"] },
   ];
@@ -490,7 +484,7 @@ dl.summary dd { margin: 0; }
 
   // ---------- state ----------
   const S = {
-    pid: "", session: 1, survey: {}, ratings: {}, math: { shown: 0, correct: 0 }, unid: 0,
+    pid: "", session: 1, survey: {}, ratings: {}, mem: { number: "", correct: null }, unid: 0,
     phases: { warmup: { recs: [], t0: 0, t1: 0 }, calm: { recs: [], t0: 0, t1: 0 }, pressure: { recs: [], t0: 0, t1: 0 } },
     current: null,
   };
@@ -510,7 +504,7 @@ dl.summary dd { margin: 0; }
     });
   }
   function show(id) {
-    ["s-consent", "s-rating", "s-typing", "s-ready", "s-pressure", "s-survey", "s-done"].forEach((s) => ($(s).hidden = s !== id));
+    ["s-consent", "s-rating", "s-typing", "s-ready", "s-pressure", "s-recall", "s-survey", "s-done"].forEach((s) => ($(s).hidden = s !== id));
     window.scrollTo({ top: 0 });
   }
 
@@ -693,7 +687,7 @@ dl.summary dd { margin: 0; }
   }
 
   // ---------- "get ready" countdown between rounds ----------
-  function getReady({ eyebrow, title, text, seconds = 3, pressure = false, step }, next) {
+  function getReady({ eyebrow, title, text, extra = "", seconds = 3, pressure = false, step }, next) {
     if (step) setStep(step);
     show("s-ready");
     $("readyBox").classList.toggle("pressure", pressure);
@@ -701,10 +695,12 @@ dl.summary dd { margin: 0; }
     $("readyEyebrow").classList.toggle("pressure", pressure);
     $("readyTitle").textContent = title;
     $("readyText").textContent = text;
+    $("readyExtra").hidden = !extra;
+    $("readyExtra").textContent = extra;
     let left = seconds;
     const show1 = () => {
       $("readyCount").textContent = left;
-      if (pressure) { countBeep(Math.min(5, left)); say(left); }
+      if (pressure && left <= 5) { countBeep(left); say(left); }
     };
     show1();
     const t = setInterval(() => {
@@ -788,9 +784,10 @@ dl.summary dd { margin: 0; }
         clearInterval(typeTimer); endPhase();
         rating("calm", "Calm round finished", "How stressed did you feel during that round?", "calm", () => getReady({
           eyebrow: "Next: Pressure round · 3 minutes",
-          title: "Get ready",
-          text: "Write at least 25 words per question before its timer runs out, and answer the maths checks.",
-          seconds: 5,
+          title: "Remember this number. You'll be asked at the end.",
+          text: "Then write at least 20 words per question before its timer runs out. Every question gives you less time.",
+          extra: newMemoryNumber(),
+          seconds: 8,
           pressure: true,
           step: "pressure",
         }, startPressure));
@@ -808,126 +805,105 @@ dl.summary dd { margin: 0; }
   // ---------- pressure round ----------
   const pressBox = $("pressBox");
   attachRecorder(pressBox);
-  let pTimer = null, pPromptIdx = -1, promptEnd = 0, roundEnd = 0, answers = 0, nextMathAt = 0, mathEnd = 0, mathAnswer = 0, mathOpen = false;
+  let pTimer = null, pPromptIdx = -1, promptEnd = 0, promptStart = 0, promptSecs = 40, roundEnd = 0, answers = 0, lastBehindBuzz = 0;
+  function newMemoryNumber() {
+    S.mem.number = Array.from({ length: 5 }, () => rnd(0, 9)).join("");
+    return S.mem.number.split("").join(" ");
+  }
   function nextPressPrompt(completed) {
     if (completed) answers++;
     pPromptIdx = (pPromptIdx + 1) % PRESSURE_PROMPTS.length;
     $("pressPrompt").textContent = PRESSURE_PROMPTS[pPromptIdx];
     pressBox.value = ""; $("wordCount").textContent = "0";
-    promptEnd = Date.now() + PROMPT_SECONDS * 1000;
-    $("answersDone").textContent = answers + " / 5";
-    $("answersDone").classList.toggle("bad", answers < 5);
+    promptSecs = QUESTION_SECONDS[Math.min(pPromptIdx, QUESTION_SECONDS.length - 1)];
+    promptStart = Date.now();
+    promptEnd = promptStart + promptSecs * 1000;
+    $("answersDone").textContent = answers + " / " + ANSWER_TARGET;
+    $("answersDone").classList.toggle("bad", answers < ANSWER_TARGET);
   }
   function flash(msg, ok) {
     const f = $("pressFlash");
     f.textContent = msg; f.classList.toggle("ok", !!ok);
     clearTimeout(flash.t); flash.t = setTimeout(() => (f.textContent = ""), 1800);
   }
+  const wordsIn = (el) => el.value.trim().split(/\s+/).filter(Boolean).length;
   pressBox.addEventListener("input", () => {
-    const words = pressBox.value.trim().split(/\s+/).filter(Boolean).length;
+    const words = wordsIn(pressBox);
     $("wordCount").textContent = words;
     if (words >= MIN_WORDS) { flash("Answer accepted", true); nextPressPrompt(true); }
   });
-  function openMath() {
-    alertBeep();
-    const [question, answer] = MATH_LEVELS[mathLevel].make();
-    mathAnswer = answer;
-    $("mathQ").textContent = question + " = ?";
-    // Four options to read (one correct, three close misses); they are not clickable.
-    const opts = new Set([answer]);
-    while (opts.size < 4) {
-      const d = rnd(1, 12) * (Math.random() < 0.5 ? -1 : 1);
-      if (answer + d >= 0) opts.add(answer + d);
-    }
-    $("mathOpts").replaceChildren(...[...opts].sort(() => Math.random() - 0.5).map((v) => {
-      const li = document.createElement("li"); li.textContent = v; return li;
-    }));
-    $("mathA").value = "";
-    $("mathOverlay").hidden = false; mathOpen = true;
-    mathEnd = Date.now() + MATH_LEVELS[mathLevel].secs * 1000;
-    $("mathClock").textContent = MATH_LEVELS[mathLevel].secs;
-    S.math.shown++;
-    updateMathScore();
-    $("mathA").focus();
+  function updatePace(now) {
+    // Where you should be by now (to reach 20 words in time) vs. where you are.
+    const frac = Math.min(1, (now - promptStart) / (promptSecs * 1000));
+    const need = MIN_WORDS * frac, have = wordsIn(pressBox);
+    $("paceYou").style.width = Math.min(100, (100 * have) / MIN_WORDS) + "%";
+    $("paceNeed").style.left = "calc(" + (100 * frac) + "% - 1px)";
+    const behind = have + 2 < need;
+    $("paceYou").parentElement.classList.toggle("behind", behind);
+    $("paceState").textContent = behind ? "Falling behind" : "On pace";
+    $("paceState").classList.toggle("bad", behind);
+    if (behind && now - lastBehindBuzz > 4000) { lastBehindBuzz = now; buzz(); flash("Falling behind. Type faster!"); }
   }
-  function closeMath(msg, ok) {
-    $("mathOverlay").hidden = true; mathOpen = false;
-    promptEnd += MATH_LEVELS[mathLevel].secs * 1000 * 0.5; // give back part of the time lost
-    mathLevel = Math.max(0, Math.min(MATH_LEVELS.length - 1, mathLevel + (ok ? 1 : -1)));
-    nextMathAt = Date.now() + (18 + Math.random() * 12) * 1000;
-    flash(msg, ok);
-    if (!ok) buzz();
-    pressBox.focus();
-  }
-  function updateMathScore() {
-    $("mathScore").textContent = S.math.correct + " / " + S.math.shown;
-    $("mathScore").classList.toggle("bad", S.math.shown > 0 && S.math.correct / S.math.shown < 0.9);
-  }
-  $("mathForm").addEventListener("submit", (e) => {
-    e.preventDefault();
-    if (!mathOpen) return;
-    const ok = Number($("mathA").value) === mathAnswer;
-    if (ok) S.math.correct++;
-    updateMathScore();
-    closeMath(ok ? "Correct" : "Wrong, the answer was " + mathAnswer, ok);
-  });
   function startPressure() {
     setStep("pressure"); show("s-pressure");
     initAudio();
     document.body.classList.add("pressure-mode");
     let lastSecond = -1;
     S.current = "pressure"; S.phases.pressure.t0 = Date.now();
-    answers = 0; pPromptIdx = -1; mathLevel = 1; nextPressPrompt(false);
+    answers = 0; pPromptIdx = -1; lastBehindBuzz = Date.now(); nextPressPrompt(false);
     roundEnd = Date.now() + PRESSURE_SECONDS * 1000;
-    nextMathAt = Date.now() + 15000;
     pressBox.focus();
     const tick = () => {
       const now = Date.now();
       const left = Math.max(0, Math.round((roundEnd - now) / 1000));
       $("roundClock").textContent = fmt(left);
-      if (mathOpen) {
-        $("bigCount").hidden = true;
-        const ml = Math.max(0, Math.ceil((mathEnd - now) / 1000));
-        $("mathClock").textContent = ml;
-        if (ml <= 0) closeMath("Too slow, the answer was " + mathAnswer, false);
-      } else {
-        const pl = Math.max(0, Math.ceil((promptEnd - now) / 1000));
-        const clock = $("promptClock");
-        if (clock.textContent !== String(pl)) {
-          clock.textContent = pl;
-          clock.classList.toggle("urgent", pl <= 10);
-          $("timerLabel").textContent = pl <= 10 ? "hurry, finish your answer now!" : "seconds to finish this answer";
-          clock.classList.remove("beat"); void clock.offsetWidth; clock.classList.add("beat");
-        }
-        $("pressurePanel").classList.toggle("urgent", pl <= 10);
-        document.body.classList.toggle("urgent", pl <= 10);
-        if (pl !== lastSecond) {
-          lastSecond = pl;
-          const big = $("bigCount");
-          if (pl <= 5 && pl > 0) {
-            big.hidden = false; big.textContent = pl;
-            big.classList.remove("pop"); void big.offsetWidth; big.classList.add("pop");
-            countBeep(pl); say(pl);
-          } else {
-            big.hidden = true;
-            if (pl <= 10 && pl > 0) warnBeep(); else tickSound();
-          }
-        }
-        if (pl <= 0) { flash("Time's up, next question"); buzz(); nextPressPrompt(false); }
-        if (now >= nextMathAt && left > 8) openMath();
+      const pl = Math.max(0, Math.ceil((promptEnd - now) / 1000));
+      const clock = $("promptClock");
+      if (clock.textContent !== String(pl)) {
+        clock.textContent = pl;
+        clock.classList.toggle("urgent", pl <= 10);
+        $("timerLabel").textContent = pl <= 10 ? "hurry, finish your answer now!" : "seconds to finish this answer";
+        clock.classList.remove("beat"); void clock.offsetWidth; clock.classList.add("beat");
       }
+      $("pressurePanel").classList.toggle("urgent", pl <= 10);
+      document.body.classList.toggle("urgent", pl <= 10);
+      if (pl !== lastSecond) {
+        lastSecond = pl;
+        const big = $("bigCount");
+        if (pl <= 5 && pl > 0) {
+          big.hidden = false; big.textContent = pl;
+          big.classList.remove("pop"); void big.offsetWidth; big.classList.add("pop");
+          countBeep(pl); say(pl);
+        } else {
+          big.hidden = true;
+          if (pl <= 10 && pl > 0) warnBeep(); else tickSound();
+        }
+      }
+      updatePace(now);
+      if (pl <= 0) { flash("Time's up, next question"); buzz(); nextPressPrompt(false); }
       if (left <= 0) {
         clearInterval(pTimer);
-        if (mathOpen) { $("mathOverlay").hidden = true; mathOpen = false; }
         $("bigCount").hidden = true;
         $("pressurePanel").classList.remove("urgent");
         document.body.classList.remove("pressure-mode", "urgent");
         endPhase();
-        rating("pressure", "Pressure round finished", "How stressed did you feel during that round?", "mood2", startSurvey);
+        startRecall();
       }
     };
     clearInterval(pTimer); pTimer = setInterval(tick, 200); tick();
   }
+
+  // ---------- number recall ----------
+  function startRecall() {
+    show("s-recall");
+    $("memA").value = "";
+    $("memA").focus();
+  }
+  $("recallForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    S.mem.correct = $("memA").value.replace(/\D/g, "") === S.mem.number;
+    rating("pressure", "Almost done", "How stressed did you feel during the pressure round?", "mood2", startSurvey);
+  });
 
   // ---------- survey: one question at a time ----------
   let qIdx = 0;
@@ -985,11 +961,11 @@ dl.summary dd { margin: 0; }
   async function finish() {
     setStep("done"); show("s-done");
     const out = {
-      v: 1, study: "mindflow-typing-1", pid: S.pid, session: S.session,
+      v: 2, study: "mindflow-typing-1", pid: S.pid, session: S.session,
       date: new Date().toISOString().slice(0, 10),
       dev: { coarse, unid: S.unid },
       r: { start: S.ratings.start, calm: S.ratings.calm, pressure: S.ratings.pressure },
-      m: { shown: S.math.shown, correct: S.math.correct },
+      mem: { correct: S.mem.correct },
       q: S.survey,
       p: { warmup: phaseOut("warmup"), calm: phaseOut("calm"), pressure: phaseOut("pressure") },
     };
