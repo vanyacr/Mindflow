@@ -334,7 +334,7 @@ dl.summary dd { margin: 0; }
 
   <!-- Pressure round -->
   <section id="s-pressure" class="stack round" hidden>
-    <p class="eyebrow pressure">Pressure round · 10 questions · at least 5 words each · less time every question</p>
+    <p class="eyebrow pressure">Pressure round · 10 questions · less time every question</p>
     <div class="hud">
       <div><span>Done</span><span class="num done" id="answersDone">0 / 10</span></div>
       <div><span>Question</span><span class="num" id="qNumber">1 of 10</span></div>
@@ -349,7 +349,7 @@ dl.summary dd { margin: 0; }
       <div class="bigcount" id="bigCount" hidden aria-hidden="true"></div>
       <div class="pace" aria-hidden="true"><i id="paceYou"></i><b id="paceNeed"></b></div>
       <div class="meta">
-        <span>Words: <span class="num" id="wordCount">0</span> / 5 · press <b>Enter</b> to submit · stay ahead of the white line</span>
+        <span>Words: <span class="num" id="wordCount">0</span> · press <b>Enter</b> to submit · stay ahead of the white line</span>
         <button type="button" id="pressNext" disabled>Submit answer ↵</button>
       </div>
       <p class="flash" id="pressFlash" role="status"></p>
@@ -790,7 +790,7 @@ dl.summary dd { margin: 0; }
         rating("calm", "Calm round finished", "How stressed did you feel during that round?", "calm", () => getReady({
           eyebrow: "Next: Pressure round · 3 minutes",
           title: "Remember this number. You'll be asked at the end.",
-          text: "Then answer 10 questions, at least 5 words each, before each timer runs out. Every question gives you less time.",
+          text: "Then answer 10 questions before each timer runs out. Every question gives you less time.",
           extra: newMemoryNumber(),
           seconds: 8,
           pressure: true,
