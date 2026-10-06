@@ -177,6 +177,9 @@ fieldset.q legend { font-weight: 700; padding: 0; margin-bottom: 4px; }
 .chips label:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
 .chips input { accent-color: var(--accent); margin: 0; }
 .survey { display: grid; gap: 22px; }
+.session-card { border-left: 4px solid var(--accent); background: var(--accent-soft); padding: 12px 16px; border-radius: 6px; display: grid; gap: 4px; }
+.session-card.blocked { border-color: var(--pressure); background: var(--pressure-soft); }
+.session-card strong { font-family: var(--font-display); font-size: var(--step-1); }
 .inline { display: flex; gap: 12px; align-items: end; flex-wrap: wrap; }
 select { font: inherit; color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 8px; padding: 10px 12px; }
 .code { font-family: var(--font-mono); font-size: 0.8rem; width: 100%; min-height: 120px; word-break: break-all; background: var(--paper); }
@@ -213,7 +216,7 @@ dl.summary dd { margin: 0; }
         <ul>
           <li>Timing numbers: how long keys are held, gaps between keys, pauses, backspace rate</li>
           <li>Your 1–10 stress ratings and multiple-choice survey answers</li>
-          <li>The participant code and session number you enter below</li>
+          <li>Your participant code and which session this is</li>
         </ul>
       </div>
       <div>
@@ -233,18 +236,10 @@ dl.summary dd { margin: 0; }
         <label for="pid">Participant code</label>
         <input type="text" id="pid" maxlength="12" autocomplete="off" placeholder="e.g. P07">
       </div>
-      <div class="field">
-        <label for="sess">Session</label>
-        <select id="sess">
-          <option value="1">1 (first time)</option>
-          <option value="2">2</option>
-          <option value="3">3</option>
-          <option value="4">4</option>
-        </select>
-      </div>
       <button type="button" class="ghost" id="soundTest">Test sound</button>
     </div>
-    <span class="hint">Use the code the researcher gave you, not your name. Pick the session number they told you.</span>
+    <span class="hint">Use the code the researcher gave you, not your name.</span>
+    <div class="session-card" id="sessionCard" hidden role="status"></div>
     <label class="check" for="agree"><input type="checkbox" id="agree"> I've read the above and agree to take part.</label>
     <div class="actions"><button id="startBtn" disabled>Start</button></div>
   </section>
@@ -324,6 +319,7 @@ dl.summary dd { margin: 0; }
       <span class="hint" id="copyMsg" role="status"></span>
     </div>
     <p class="hint">Paste it into WhatsApp or email as one message. Then you can close this page.</p>
+    <div class="session-card" id="nextSession" hidden></div>
   </section>
 </div>
 
@@ -534,16 +530,63 @@ dl.summary dd { margin: 0; }
   const pidIn = $("pid"), agree = $("agree"), startBtn = $("startBtn");
   const params = new URLSearchParams(location.search);
   if (params.get("pid")) pidIn.value = params.get("pid");
-  if (["1", "2", "3", "4"].includes(params.get("s"))) $("sess").value = params.get("s");
   $("soundTest").addEventListener("click", () => { initAudio(); alertBeep(); });
   const validPid = () => /^[A-Za-z0-9_-]{1,12}$/.test(pidIn.value.trim());
-  const refreshStart = () => (startBtn.disabled = coarse || !(validPid() && agree.checked));
+
+  // Sessions are counted automatically on this laptop and browser: the page
+  // remembers only the dates of finished sessions per participant code.
+  const MAX_SESSIONS = 3, MIN_GAP_HOURS = 20, SUGGESTED_GAP_DAYS = 3;
+  const STORE_KEY = "mindflow-study-sessions";
+  const loadHistory = () => { try { return JSON.parse(localStorage.getItem(STORE_KEY) || "{}"); } catch (_) { return {}; } };
+  const saveHistory = (h) => { try { localStorage.setItem(STORE_KEY, JSON.stringify(h)); } catch (_) {} };
+  const fmtDate = (ms) => new Date(ms).toLocaleDateString(undefined, { day: "numeric", month: "short" });
+  function sessionPlan(pid) {
+    const done = loadHistory()[pid] || [];
+    const urlS = Number(params.get("s")) || 1;       // optional researcher override
+    const next = Math.max(done.length + 1, urlS);
+    const last = done.length ? done[done.length - 1] : null;
+    const hoursSince = last ? (Date.now() - last) / 3.6e6 : Infinity;
+    const force = params.get("force") === "1";
+    let blocked = null;
+    if (!force && next > MAX_SESSIONS) blocked = "finished";
+    else if (!force && hoursSince < MIN_GAP_HOURS) blocked = "tooSoon";
+    return { next, last, blocked };
+  }
+  function renderSessionCard() {
+    const card = $("sessionCard");
+    if (!validPid()) { card.hidden = true; return null; }
+    const plan = sessionPlan(pidIn.value.trim());
+    card.hidden = false;
+    card.classList.toggle("blocked", !!plan.blocked);
+    card.replaceChildren();
+    const title = document.createElement("strong"), line = document.createElement("span");
+    if (plan.blocked === "finished") {
+      title.textContent = "All sessions done";
+      line.textContent = "You've completed all " + MAX_SESSIONS + " sessions. Thank you! There's nothing more to do.";
+    } else if (plan.blocked === "tooSoon") {
+      title.textContent = "Come back tomorrow";
+      line.textContent = "You already did a session on " + fmtDate(plan.last) + ". Session " + plan.next + " opens tomorrow or later, using this same link.";
+    } else if (plan.next === 1) {
+      title.textContent = "Session 1";
+      line.textContent = "Your first time. About 15 minutes.";
+    } else {
+      const days = Math.round((Date.now() - plan.last) / 864e5);
+      title.textContent = "Welcome back! Session " + plan.next + " of " + MAX_SESSIONS;
+      line.textContent = "Your last session was on " + fmtDate(plan.last) + (days >= 1 ? " (" + days + (days === 1 ? " day" : " days") + " ago)." : ".");
+    }
+    card.append(title, line);
+    return plan;
+  }
+  const refreshStart = () => {
+    const plan = renderSessionCard();
+    startBtn.disabled = coarse || !(validPid() && agree.checked) || !plan || !!plan.blocked;
+  };
   pidIn.addEventListener("input", refreshStart);
   agree.addEventListener("change", refreshStart);
   refreshStart();
   startBtn.addEventListener("click", () => {
     S.pid = pidIn.value.trim();
-    S.session = Number($("sess").value) || 1;
+    S.session = sessionPlan(S.pid).next;
     initAudio();
     $("pidChip").textContent = "Participant " + S.pid + " · session " + S.session;
     rating("start", "Before we begin", "How stressed do you feel right now?", "mood1", startWarmup);
@@ -791,6 +834,22 @@ dl.summary dd { margin: 0; }
     Object.values(S.phases).forEach((ph) => (ph.recs = []));
     codeText = await encode(out);
     $("codeBox").value = codeText;
+    const hist = loadHistory();
+    hist[S.pid] = [...(hist[S.pid] || []), Date.now()].slice(-MAX_SESSIONS);
+    saveHistory(hist);
+    const next = $("nextSession");
+    next.replaceChildren();
+    const t = document.createElement("strong"), l = document.createElement("span");
+    if (S.session < MAX_SESSIONS) {
+      t.textContent = "If you were asked to repeat the study";
+      l.textContent = "Come back on or after " + fmtDate(Date.now() + SUGGESTED_GAP_DAYS * 864e5) +
+        " on this same laptop and browser, using the same link. Session " + (S.session + 1) + " will start automatically.";
+    } else {
+      t.textContent = "That was your last session";
+      l.textContent = "Thank you for doing all " + MAX_SESSIONS + " sessions!";
+    }
+    next.append(t, l);
+    next.hidden = false;
     const sum = $("summary");
     sum.replaceChildren();
     [["Participant", out.pid + " (session " + out.session + ")"],
