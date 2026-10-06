@@ -177,6 +177,12 @@ fieldset.q legend { font-weight: 700; padding: 0; margin-bottom: 4px; }
 .chips label:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
 .chips input { accent-color: var(--accent); margin: 0; }
 .survey { display: grid; gap: 22px; }
+.ready { display: grid; gap: 14px; justify-items: start; padding-block: 24px; }
+.ready .count { font-family: var(--font-mono); font-size: 4rem; font-weight: 600; line-height: 1; color: var(--accent); }
+.ready.pressure .count { color: var(--pressure); }
+.qprogress { display: flex; justify-content: space-between; font-size: var(--step--1); color: var(--muted); }
+.survey-q { display: grid; gap: 16px; }
+.survey-q .chips label { font-size: var(--step-0); padding: 10px 18px; }
 .session-card { border-left: 4px solid var(--accent); background: var(--accent-soft); padding: 12px 16px; border-radius: 6px; display: grid; gap: 4px; }
 .session-card.blocked { border-color: var(--pressure); background: var(--pressure-soft); }
 .session-card strong { font-family: var(--font-display); font-size: var(--step-1); }
@@ -250,7 +256,7 @@ dl.summary dd { margin: 0; }
     <h2 id="ratingTitle">How stressed do you feel right now?</h2>
     <div class="scale" id="scale" role="group" aria-label="Stress rating from 1 to 10"></div>
     <div class="scale-ends"><span>1 · completely relaxed</span><span>10 · extremely stressed</span></div>
-    <div class="actions"><button id="ratingNext" disabled>Continue</button></div>
+    <p class="hint">Tap a number to continue.</p>
   </section>
 
   <!-- Typing rounds (warm-up and calm) -->
@@ -265,11 +271,21 @@ dl.summary dd { margin: 0; }
       <div class="meter" aria-hidden="true"><i id="typeMeter"></i></div>
       <div class="meta">
         <span id="typeProgress" class="num"></span>
-        <button class="ghost" id="nextPrompt">Next question</button>
+        <button class="ghost" id="nextPrompt">Skip question</button>
       </div>
     </div>
     <div id="unidWarn" class="warn" hidden>Your keyboard isn't reporting keys. If you're on a phone or tablet, please switch to a laptop.</div>
-    <div class="actions"><button id="typeDone" disabled>Continue</button><span class="hint" id="typeDoneHint"></span></div>
+    <p class="hint" id="typeDoneHint" role="status"></p>
+  </section>
+
+  <!-- Get ready (between rounds) -->
+  <section id="s-ready" class="stack" hidden>
+    <div class="ready" id="readyBox">
+      <p class="eyebrow" id="readyEyebrow"></p>
+      <h2 id="readyTitle"></h2>
+      <p class="lede" id="readyText"></p>
+      <span class="count" id="readyCount" aria-live="polite"></span>
+    </div>
   </section>
 
   <!-- Pressure round -->
@@ -301,9 +317,10 @@ dl.summary dd { margin: 0; }
   <section id="s-survey" class="stack" hidden>
     <p class="eyebrow">Last step · 1 minute</p>
     <h2>A few quick questions about you and the round you just did</h2>
-    <p class="hint">Multiple choice only. Skip any you prefer not to answer.</p>
-    <form class="survey" id="surveyForm"></form>
-    <div class="actions"><button id="surveyDone">Finish and get my code</button></div>
+    <div class="qprogress"><span id="qCount"></span><span>Tap an answer to continue</span></div>
+    <div class="meter" aria-hidden="true"><i id="qMeter"></i></div>
+    <fieldset class="q survey-q" id="surveyQ"><legend id="qText"></legend><div class="chips" id="qChips"></div></fieldset>
+    <div class="actions"><button type="button" class="ghost" id="qBack">Back</button><button type="button" class="ghost" id="qSkip">Skip this question</button></div>
   </section>
 
   <!-- Done -->
@@ -437,7 +454,7 @@ dl.summary dd { margin: 0; }
     });
   }
   function show(id) {
-    ["s-consent", "s-rating", "s-typing", "s-pressure", "s-survey", "s-done"].forEach((s) => ($(s).hidden = s !== id));
+    ["s-consent", "s-rating", "s-typing", "s-ready", "s-pressure", "s-survey", "s-done"].forEach((s) => ($(s).hidden = s !== id));
     window.scrollTo({ top: 0 });
   }
 
@@ -589,7 +606,12 @@ dl.summary dd { margin: 0; }
     S.session = sessionPlan(S.pid).next;
     initAudio();
     $("pidChip").textContent = "Participant " + S.pid + " · session " + S.session;
-    rating("start", "Before we begin", "How stressed do you feel right now?", "mood1", startWarmup);
+    rating("start", "Before we begin", "How stressed do you feel right now?", "mood1", () => getReady({
+      eyebrow: "Round 1 of 3",
+      title: "Warm-up: type naturally",
+      text: "Answer a few fun questions the way you normally type.",
+      step: "warmup",
+    }, startWarmup));
   });
 
   // ---------- rating ----------
@@ -600,7 +622,9 @@ dl.summary dd { margin: 0; }
     b.addEventListener("click", () => {
       S.ratings[ratingKey] = i;
       $("scale").querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
-      $("ratingNext").disabled = false;
+      const cb = ratingCb;
+      ratingCb = null; // one pick per screen
+      if (cb) setTimeout(cb, 350);
     });
     $("scale").appendChild(b);
   }
@@ -609,44 +633,77 @@ dl.summary dd { margin: 0; }
     $("ratingEyebrow").textContent = eyebrow;
     $("ratingTitle").textContent = title;
     $("scale").querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", "false"));
-    $("ratingNext").disabled = true;
     setStep(step); show("s-rating");
   }
-  $("ratingNext").addEventListener("click", () => ratingCb && ratingCb());
+
+  // ---------- "get ready" countdown between rounds ----------
+  function getReady({ eyebrow, title, text, seconds = 3, pressure = false, step }, next) {
+    if (step) setStep(step);
+    show("s-ready");
+    $("readyBox").classList.toggle("pressure", pressure);
+    $("readyEyebrow").textContent = eyebrow;
+    $("readyEyebrow").classList.toggle("pressure", pressure);
+    $("readyTitle").textContent = title;
+    $("readyText").textContent = text;
+    let left = seconds;
+    const show1 = () => {
+      $("readyCount").textContent = left;
+      if (pressure) beep(520, 90, 0.12);
+    };
+    show1();
+    const t = setInterval(() => {
+      left--;
+      if (left <= 0) { clearInterval(t); next(); } else show1();
+    }, 1000);
+  }
 
   // ---------- warm-up and calm rounds ----------
   const typeBox = $("typeBox");
   attachRecorder(typeBox);
   let promptList = [], promptIdx = 0, typeTimer = null;
+  const WORDS_PER_ANSWER = 40;
   function nextPrompt() {
     promptIdx = (promptIdx + 1) % promptList.length;
-    $("typePrompt").textContent = promptList[promptIdx];
+    $("typePrompt").textContent = "Question " + (promptIdx + 1) + ": " + promptList[promptIdx];
     typeBox.value = "";
     typeBox.focus();
   }
   $("nextPrompt").addEventListener("click", nextPrompt);
+  // After a full answer, the next question appears by itself.
+  typeBox.addEventListener("input", () => {
+    if (!S.current) return;
+    const words = typeBox.value.trim().split(/\s+/).filter(Boolean).length;
+    if (words >= WORDS_PER_ANSWER) {
+      $("typeDoneHint").textContent = "Nice answer. Here's the next question.";
+      nextPrompt();
+    }
+  });
 
   function startWarmup() {
     setStep("warmup"); show("s-typing");
     $("typeEyebrow").textContent = "Warm-up · learns your normal typing";
     $("typeTitle").textContent = "Type naturally, the way you usually do";
-    $("typeLede").textContent = "Answer in full sentences. Switch questions whenever you like. This round ends once about 600 keystrokes are recorded (3–5 minutes for most people).";
+    $("typeLede").textContent = "Answer in full sentences. A new question appears after each answer. This round moves on by itself once about 600 keystrokes are recorded (3–5 minutes for most people).";
     promptList = WARMUP_PROMPTS; promptIdx = -1; nextPrompt();
     S.current = "warmup"; S.phases.warmup.t0 = Date.now();
-    $("typeDone").disabled = true;
     $("typeDoneHint").textContent = "";
     const update = () => {
       const n = S.phases.warmup.recs.length;
       $("typeMeter").style.width = Math.min(100, (n / WARMUP_KEYS) * 100) + "%";
       $("typeProgress").textContent = Math.min(n, WARMUP_KEYS) + " / " + WARMUP_KEYS + " keystrokes";
       $("unidWarn").hidden = !(S.unid > 30 && S.unid > n / 2);
-      if (n >= WARMUP_KEYS && $("typeDone").disabled) {
-        $("typeDone").disabled = false;
-        $("typeDoneHint").textContent = "Warm-up complete.";
+      if (n >= WARMUP_KEYS && S.current === "warmup") {
+        endPhase();
+        onKey = () => {};
+        getReady({
+          eyebrow: "Warm-up complete ✓",
+          title: "Next: Calm round",
+          text: "3 minutes of relaxed typing. It ends by itself.",
+          step: "calm",
+        }, startCalm);
       }
     };
     onKey = update; update();
-    $("typeDone").onclick = () => { endPhase(); startCalm(); };
   }
 
   function startCalm() {
@@ -656,7 +713,6 @@ dl.summary dd { margin: 0; }
     $("typeLede").textContent = "Keep typing at a relaxed pace. The round ends by itself.";
     promptList = CALM_PROMPTS; promptIdx = -1; nextPrompt();
     S.current = "calm"; S.phases.calm.t0 = Date.now();
-    $("typeDone").disabled = true;
     $("typeDoneHint").textContent = "";
     $("typeMeter").style.width = "0%";
     onKey = () => {};
@@ -667,7 +723,14 @@ dl.summary dd { margin: 0; }
       $("typeMeter").style.width = (100 * (1 - left / CALM_SECONDS)) + "%";
       if (left <= 0) {
         clearInterval(typeTimer); endPhase();
-        rating("calm", "Calm round finished", "How stressed did you feel during that round?", "calm", startPressure);
+        rating("calm", "Calm round finished", "How stressed did you feel during that round?", "calm", () => getReady({
+          eyebrow: "Next: Pressure round · 3 minutes",
+          title: "Get ready. The screen will turn red.",
+          text: "Write at least 25 words per question before its timer runs out, and answer the maths checks. Sound on.",
+          seconds: 5,
+          pressure: true,
+          step: "pressure",
+        }, startPressure));
       }
     };
     clearInterval(typeTimer); typeTimer = setInterval(tick, 250); tick();
@@ -778,24 +841,36 @@ dl.summary dd { margin: 0; }
     clearInterval(pTimer); pTimer = setInterval(tick, 200); tick();
   }
 
-  // ---------- survey ----------
-  const form = $("surveyForm");
-  SURVEY.forEach((item) => {
-    const fs = document.createElement("fieldset"); fs.className = "q";
-    const lg = document.createElement("legend"); lg.textContent = item.q; fs.appendChild(lg);
-    const chips = document.createElement("div"); chips.className = "chips";
+  // ---------- survey: one question at a time ----------
+  let qIdx = 0;
+  function renderQuestion() {
+    const item = SURVEY[qIdx];
+    $("qCount").textContent = "Question " + (qIdx + 1) + " of " + SURVEY.length;
+    $("qMeter").style.width = (100 * qIdx / SURVEY.length) + "%";
+    $("qText").textContent = item.q;
+    $("qBack").hidden = qIdx === 0;
+    const chips = $("qChips");
+    chips.replaceChildren();
     item.a.forEach((ans, i) => {
       const lab = document.createElement("label");
       const inp = document.createElement("input");
       inp.type = "radio"; inp.name = item.id; inp.value = ans; inp.id = item.id + "_" + i;
-      inp.addEventListener("change", () => (S.survey[item.id] = ans));
+      inp.checked = S.survey[item.id] === ans;
+      inp.addEventListener("change", () => {
+        S.survey[item.id] = ans;
+        setTimeout(nextQuestion, 300);
+      });
       lab.append(inp, document.createTextNode(ans));
       chips.appendChild(lab);
     });
-    fs.appendChild(chips); form.appendChild(fs);
-  });
-  function startSurvey() { setStep("survey"); show("s-survey"); }
-  $("surveyDone").addEventListener("click", () => finish());
+  }
+  function nextQuestion() {
+    if (qIdx < SURVEY.length - 1) { qIdx++; renderQuestion(); }
+    else { $("qMeter").style.width = "100%"; finish(); }
+  }
+  $("qSkip").addEventListener("click", nextQuestion);
+  $("qBack").addEventListener("click", () => { if (qIdx > 0) { qIdx--; renderQuestion(); } });
+  function startSurvey() { qIdx = 0; setStep("survey"); show("s-survey"); renderQuestion(); }
 
   // ---------- result code ----------
   function b64url(bytes) {
