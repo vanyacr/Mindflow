@@ -178,6 +178,8 @@ textarea {
 .overlay { position: absolute; inset: 0; background: color-mix(in srgb, var(--surface) 92%, transparent); border-radius: var(--radius); display: grid; place-items: center; padding: 20px; }
 .mathbox { display: grid; gap: 10px; justify-items: center; text-align: center; }
 .mathbox .q { font-family: var(--font-mono); font-size: var(--step-3); font-weight: 600; }
+.mathopts { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin: 0; padding: 0; list-style: none; }
+.mathopts li { font-family: var(--font-mono); font-size: var(--step-1); font-weight: 600; border: 1.5px dashed var(--line); border-radius: 8px; padding: 6px 14px; user-select: none; cursor: default; }
 .mathbox input { max-width: 180px; text-align: center; font-family: var(--font-mono); font-size: var(--step-1); }
 .flash { font-weight: 700; color: var(--pressure); min-height: 1.5em; }
 .flash.ok { color: var(--ok); }
@@ -250,7 +252,7 @@ dl.summary dd { margin: 0; }
         </ul>
       </div>
     </div>
-    <p><strong>Turn your sound on.</strong> The pressure round turns the screen red and uses ticking and beeps. If that would be a problem for you (for example, sensitivity to flashing or loud sounds), please don't take part.</p>
+    <p><strong>Turn your sound on.</strong> Some parts of the study use sounds and bright colours. If you are sensitive to flashing or loud sounds, please don't take part.</p>
     <p>Taking part is voluntary. You can stop at any time by closing this page, and nothing is sent unless you send the code yourself. The pressure round is designed to be hard; nobody sees how well you did.</p>
     <div id="deviceWarn" class="warn" hidden>This study needs a laptop or desktop keyboard. Phone and tablet keyboards don't report key timing, so please open this file on a laptop.</div>
     <div class="inline">
@@ -321,7 +323,9 @@ dl.summary dd { margin: 0; }
         <form class="mathbox" id="mathForm">
           <span class="eyebrow pressure">Maths check · <span class="num" id="mathClock">9</span>s</span>
           <span class="q" id="mathQ"></span>
-          <input type="number" id="mathA" inputmode="numeric" aria-label="Answer">
+          <ul class="mathopts" id="mathOpts" aria-label="Possible answers"></ul>
+          <span class="hint">Type the correct answer and press Enter</span>
+          <input type="number" id="mathA" inputmode="numeric" aria-label="Your answer" placeholder="Answer">
           <button type="submit">Submit</button>
         </form>
       </div>
@@ -754,8 +758,8 @@ dl.summary dd { margin: 0; }
         clearInterval(typeTimer); endPhase();
         rating("calm", "Calm round finished", "How stressed did you feel during that round?", "calm", () => getReady({
           eyebrow: "Next: Pressure round · 3 minutes",
-          title: "Get ready. The screen will turn red.",
-          text: "Write at least 25 words per question before its timer runs out, and answer the maths checks. Sound on.",
+          title: "Get ready",
+          text: "Write at least 25 words per question before its timer runs out, and answer the maths checks.",
           seconds: 5,
           pressure: true,
           step: "pressure",
@@ -798,7 +802,16 @@ dl.summary dd { margin: 0; }
     alertBeep();
     const [question, answer] = MATH_LEVELS[mathLevel].make();
     mathAnswer = answer;
-    $("mathQ").textContent = question;
+    $("mathQ").textContent = question + " = ?";
+    // Four options to read (one correct, three close misses); they are not clickable.
+    const opts = new Set([answer]);
+    while (opts.size < 4) {
+      const d = rnd(1, 12) * (Math.random() < 0.5 ? -1 : 1);
+      if (answer + d >= 0) opts.add(answer + d);
+    }
+    $("mathOpts").replaceChildren(...[...opts].sort(() => Math.random() - 0.5).map((v) => {
+      const li = document.createElement("li"); li.textContent = v; return li;
+    }));
     $("mathA").value = "";
     $("mathOverlay").hidden = false; mathOpen = true;
     mathEnd = Date.now() + MATH_LEVELS[mathLevel].secs * 1000;
