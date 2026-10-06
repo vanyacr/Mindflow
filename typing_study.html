@@ -1,3 +1,7 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Mindflow Typing Study</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -64,6 +68,8 @@
 }
 
 * { box-sizing: border-box; }
+/* Only one screen at a time: hidden sections must stay hidden even though .stack sets display. */
+[hidden] { display: none !important; }
 body {
   background: var(--paper);
   color: var(--ink);
@@ -75,7 +81,11 @@ body {
 }
 body.pressure-mode { background: var(--alarm-bg); }
 body.pressure-mode.urgent { background: var(--alarm-bg-strong); }
-.wrap { max-width: 760px; margin: 0 auto; padding-block: 28px 64px; display: grid; gap: 28px; }
+.wrap { max-width: 760px; margin: 0 auto; padding-block: 20px 48px; display: grid; gap: 20px; }
+/* During a round the task itself is the page: tight spacing, short headings. */
+section.round { gap: 10px; }
+section.round h2 { font-size: var(--step-1); }
+section.round .lede { font-size: var(--step-0); }
 
 header.top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .brand { font-family: var(--font-display); font-weight: 700; font-size: var(--step-1); letter-spacing: -0.01em; }
@@ -137,6 +147,7 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 /* typing panel */
 .panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; display: grid; gap: 14px; position: relative; }
 .panel.pressure { border-color: var(--pressure); }
+.meta .prompt { color: var(--ink); }
 .prompt { font-family: var(--font-display); font-weight: 500; font-size: var(--step-1); line-height: 1.3; }
 textarea {
   font: inherit; color: var(--ink); background: var(--paper); width: 100%; min-height: 170px; resize: vertical;
@@ -159,6 +170,11 @@ textarea {
 .hud .bad { color: var(--pressure); }
 @media (max-width: 480px) { .hud { grid-template-columns: 1fr 1fr; } }
 
+.bigcount { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; font-family: var(--font-mono); font-weight: 600; font-size: 9rem; line-height: 1; color: var(--pressure); opacity: 0.85; }
+@media (prefers-reduced-motion: no-preference) {
+  .bigcount.pop { animation: pop 0.9s ease-out; }
+  @keyframes pop { from { transform: scale(1.35); opacity: 1; } to { transform: scale(1); opacity: 0.6; } }
+}
 .overlay { position: absolute; inset: 0; background: color-mix(in srgb, var(--surface) 92%, transparent); border-radius: var(--radius); display: grid; place-items: center; padding: 20px; }
 .mathbox { display: grid; gap: 10px; justify-items: center; text-align: center; }
 .mathbox .q { font-family: var(--font-mono); font-size: var(--step-3); font-weight: 600; }
@@ -177,8 +193,8 @@ fieldset.q legend { font-weight: 700; padding: 0; margin-bottom: 4px; }
 .chips label:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
 .chips input { accent-color: var(--accent); margin: 0; }
 .survey { display: grid; gap: 22px; }
-.ready { display: grid; gap: 14px; justify-items: start; padding-block: 24px; }
-.ready .count { font-family: var(--font-mono); font-size: 4rem; font-weight: 600; line-height: 1; color: var(--accent); }
+.ready { display: grid; gap: 14px; justify-items: center; text-align: center; align-content: center; min-height: 60vh; }
+.ready .count { font-family: var(--font-mono); font-size: 5rem; font-weight: 600; line-height: 1; color: var(--accent); }
 .ready.pressure .count { color: var(--pressure); }
 .qprogress { display: flex; justify-content: space-between; font-size: var(--step--1); color: var(--muted); }
 .survey-q { display: grid; gap: 16px; }
@@ -260,7 +276,7 @@ dl.summary dd { margin: 0; }
   </section>
 
   <!-- Typing rounds (warm-up and calm) -->
-  <section id="s-typing" class="stack" hidden>
+  <section id="s-typing" class="stack round" hidden>
     <p class="eyebrow" id="typeEyebrow">Warm-up</p>
     <h2 id="typeTitle">Type naturally, the way you usually do</h2>
     <p id="typeLede" class="lede"></p>
@@ -289,10 +305,8 @@ dl.summary dd { margin: 0; }
   </section>
 
   <!-- Pressure round -->
-  <section id="s-pressure" class="stack" hidden>
-    <p class="eyebrow pressure">Pressure round · 3 minutes</p>
-    <h2>Answer fast. Write at least 25 words before the question timer runs out.</h2>
-    <p class="lede">Maths checks will interrupt you. Answer each one before its timer ends. The target is 5 full answers and 90% maths correct.</p>
+  <section id="s-pressure" class="stack round" hidden>
+    <p class="eyebrow pressure">Pressure round · 25 words before the timer hits 0 · target 5 answers, 90% maths</p>
     <div class="hud">
       <div><span>Round left</span><span class="num" id="roundClock">3:00</span></div>
       <div><span>Answers done</span><span class="num" id="answersDone">0 / 5</span></div>
@@ -301,6 +315,7 @@ dl.summary dd { margin: 0; }
     <div class="panel pressure" id="pressurePanel">
       <div class="meta"><span class="prompt" id="pressPrompt"></span><span class="clock pressure" id="promptClock">35</span></div>
       <textarea id="pressBox" spellcheck="false" autocomplete="off" aria-label="Your answer"></textarea>
+      <div class="bigcount" id="bigCount" hidden aria-hidden="true"></div>
       <div class="meta"><span>Words: <span class="num" id="wordCount">0</span> / 25</span><span class="flash" id="pressFlash" role="status"></span></div>
       <div class="overlay" id="mathOverlay" hidden>
         <form class="mathbox" id="mathForm">
@@ -364,38 +379,38 @@ dl.summary dd { margin: 0; }
   let mathLevel = 1;
 
   const WARMUP_PROMPTS = [
-    "If you could have dinner with any person, alive or not, who would it be and what would you ask?",
-    "Describe the best trip or day out you've ever had.",
-    "You win a lottery tomorrow. What are the first five things you do?",
-    "What's a film or series everyone should watch, and why?",
-    "If you could master one skill instantly, what would it be and why?",
-    "Describe your perfect weekend from morning to night.",
-    "What's the funniest thing that happened to you in college so far?",
-    "If you could live in any city in the world for a year, which and why?",
-    "Describe a food you could eat every day without getting bored.",
-    "What would you build if you had unlimited money and a team of engineers?",
-    "Describe a teacher or person who changed how you think.",
-    "What's something you believed as a kid that turned out to be wrong?",
+    "You wake up and you're the Principal of your college for one day. What are the first three things you change?",
+    "If you could have dinner with any person, alive or not, who would it be and what would you ask them?",
+    "You win ₹1 crore tomorrow. Plan exactly how you spend the first week.",
+    "Which film or series could you watch ten times, and what makes it so good?",
+    "You can master one skill instantly: cooking, dancing, coding or a language. Which one, and what do you do with it first?",
+    "Describe the funniest thing that has happened to you in college so far.",
+    "If animals could talk, which one would be the rudest, and why?",
+    "You can live in any city in the world for a year, all expenses paid. Where, and what does a normal day look like?",
+    "Describe the perfect plate of food that you could eat every day without getting bored.",
+    "What's something you believed as a kid that turned out to be completely wrong?",
+    "You have a time machine for one trip. Past or future? Where do you go and why?",
+    "Invent a new subject that every college should teach. What would students learn?",
   ];
   const CALM_PROMPTS = [
-    "Describe a peaceful place you like to be, using all five senses.",
-    "Write about a meal you really enjoyed and who you shared it with.",
-    "What are you looking forward to this month?",
-    "Describe a song that relaxes you and when you listen to it.",
-    "Write about a good memory with a friend.",
-    "Describe the view from a window you know well.",
+    "Describe your favourite rainy-day plan, from the first cup of chai to the last thing at night.",
+    "Think of a place where you feel completely at peace. What can you see, hear and smell there?",
+    "Write about a small thing that made you smile this week.",
+    "Describe a song that always relaxes you and the memory it brings back.",
+    "Write about a lazy Sunday with your favourite people.",
+    "If you had a free afternoon with no phone and no work, how would you spend it?",
   ];
   const PRESSURE_PROMPTS = [
-    "Argue for or against exams being open-book.",
-    "Explain how the internet works to a ten-year-old.",
-    "List everything you would pack for a week-long trip, and why.",
-    "Describe how to solve a problem you faced recently.",
-    "Should college attendance be compulsory? Give reasons.",
-    "Explain the rules of a sport or game you know.",
-    "Describe your plan for the next five years.",
-    "What would you change about your college, and how?",
-    "Compare living in a city with living in a village.",
-    "Explain why sleep matters for students.",
+    "Your phone is at 1% battery and you can send ONE message. Who do you send it to, and what does it say?",
+    "Convince an alien in 35 seconds why humans should NOT be destroyed.",
+    "Your professor cancelled tomorrow's exam! Write the message you send to the class group.",
+    "Sell me this pen. Make me want to buy it right now!",
+    "Plan a birthday party for your best friend with only ₹500.",
+    "Defend this: 'Group projects should be banned in college.'",
+    "You're stuck in a lift for 10 minutes with your favourite celebrity. What happens?",
+    "Explain why the sky is blue to a five-year-old who keeps asking 'why?'",
+    "Invent a new festival. What is it called and how do people celebrate it?",
+    "The canteen is closing forever. Write a speech to save it.",
   ];
 
   // Multiple-choice survey (answers are stored as short codes in the result).
@@ -430,6 +445,16 @@ dl.summary dd { margin: 0; }
   const tickSound = () => beep(1200, 25, 0.05, "square");
   const warnBeep = () => beep(880, 120, 0.18);
   const buzz = () => beep(170, 320, 0.25, "sawtooth");
+  function say(text) {
+    try {
+      if (!window.speechSynthesis) return;
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(String(text));
+      u.rate = 1.25; u.volume = 1;
+      window.speechSynthesis.speak(u);
+    } catch (_) { /* no voice available: the beep and big number still show */ }
+  }
+  const countBeep = (n) => beep(700 + (5 - n) * 120, 160, 0.25, "square");
   const alertBeep = () => { beep(660, 90, 0.18); setTimeout(() => beep(990, 120, 0.18), 120); };
 
   // ---------- state ----------
@@ -648,7 +673,7 @@ dl.summary dd { margin: 0; }
     let left = seconds;
     const show1 = () => {
       $("readyCount").textContent = left;
-      if (pressure) beep(520, 90, 0.12);
+      if (pressure) { countBeep(Math.min(5, left)); say(left); }
     };
     show1();
     const t = setInterval(() => {
@@ -683,7 +708,7 @@ dl.summary dd { margin: 0; }
     setStep("warmup"); show("s-typing");
     $("typeEyebrow").textContent = "Warm-up · learns your normal typing";
     $("typeTitle").textContent = "Type naturally, the way you usually do";
-    $("typeLede").textContent = "Answer in full sentences. A new question appears after each answer. This round moves on by itself once about 600 keystrokes are recorded (3–5 minutes for most people).";
+    $("typeLede").textContent = "A new question appears after each answer (about 40 words). Moves on by itself at 600 keystrokes.";
     promptList = WARMUP_PROMPTS; promptIdx = -1; nextPrompt();
     S.current = "warmup"; S.phases.warmup.t0 = Date.now();
     $("typeDoneHint").textContent = "";
@@ -709,8 +734,8 @@ dl.summary dd { margin: 0; }
   function startCalm() {
     setStep("calm"); show("s-typing");
     $("typeEyebrow").textContent = "Calm round · 3 minutes";
-    $("typeTitle").textContent = "Take your time. There are no right answers.";
-    $("typeLede").textContent = "Keep typing at a relaxed pace. The round ends by itself.";
+    $("typeTitle").textContent = "Relax and take your time";
+    $("typeLede").textContent = "No right answers. The round ends by itself.";
     promptList = CALM_PROMPTS; promptIdx = -1; nextPrompt();
     S.current = "calm"; S.phases.calm.t0 = Date.now();
     $("typeDoneHint").textContent = "";
@@ -814,6 +839,7 @@ dl.summary dd { margin: 0; }
       const left = Math.max(0, Math.round((roundEnd - now) / 1000));
       $("roundClock").textContent = fmt(left);
       if (mathOpen) {
+        $("bigCount").hidden = true;
         const ml = Math.max(0, Math.ceil((mathEnd - now) / 1000));
         $("mathClock").textContent = ml;
         if (ml <= 0) closeMath("Too slow, the answer was " + mathAnswer, false);
@@ -824,7 +850,15 @@ dl.summary dd { margin: 0; }
         document.body.classList.toggle("urgent", pl <= 10);
         if (pl !== lastSecond) {
           lastSecond = pl;
-          if (pl <= 10 && pl > 0) warnBeep(); else tickSound();
+          const big = $("bigCount");
+          if (pl <= 5 && pl > 0) {
+            big.hidden = false; big.textContent = pl;
+            big.classList.remove("pop"); void big.offsetWidth; big.classList.add("pop");
+            countBeep(pl); say(pl);
+          } else {
+            big.hidden = true;
+            if (pl <= 10 && pl > 0) warnBeep(); else tickSound();
+          }
         }
         if (pl <= 0) { flash("Time's up, next question"); buzz(); nextPressPrompt(false); }
         if (now >= nextMathAt && left > 8) openMath();
@@ -832,6 +866,7 @@ dl.summary dd { margin: 0; }
       if (left <= 0) {
         clearInterval(pTimer);
         if (mathOpen) { $("mathOverlay").hidden = true; mathOpen = false; }
+        $("bigCount").hidden = true;
         $("pressurePanel").classList.remove("urgent");
         document.body.classList.remove("pressure-mode", "urgent");
         endPhase();
@@ -975,3 +1010,5 @@ dl.summary dd { margin: 0; }
   setStep("consent");
 })();
 </script>
+
+</html>
