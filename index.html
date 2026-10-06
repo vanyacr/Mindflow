@@ -167,6 +167,12 @@ textarea {
 #promptClock { font-size: 3.2rem; line-height: 1; min-width: 2.2ch; text-align: right; transition: font-size 0.2s; transform-origin: right center; }
 #promptClock.urgent { font-size: 4rem; color: var(--pressure); text-shadow: 0 0 18px var(--pressure-soft); }
 #roundClock { font-size: var(--step-2); }
+.roundhead { display: grid; grid-template-columns: 1fr auto; gap: 18px; align-items: start; }
+.roundhead .stack { gap: 10px; }
+.roundtimer { display: grid; justify-items: end; gap: 2px; }
+.roundtimer .num { font-size: 3rem; font-weight: 600; line-height: 1; color: var(--accent); }
+.roundtimer span:last-child { font-size: 0.75rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+@media (max-width: 520px) { .roundhead { grid-template-columns: 1fr; } .roundtimer { justify-items: start; } }
 .qhead { display: grid; grid-template-columns: 1fr auto; gap: 18px; align-items: start; }
 .qhead .prompt { color: var(--ink); }
 .timerbox { display: grid; justify-items: end; gap: 2px; }
@@ -292,9 +298,14 @@ dl.summary dd { margin: 0; }
 
   <!-- Typing rounds (warm-up and calm) -->
   <section id="s-typing" class="stack round" hidden>
-    <p class="eyebrow" id="typeEyebrow">Warm-up</p>
-    <h2 id="typeTitle">Type naturally, the way you usually do</h2>
-    <p id="typeLede" class="lede"></p>
+    <div class="roundhead">
+      <div class="stack">
+        <p class="eyebrow" id="typeEyebrow">Warm-up</p>
+        <h2 id="typeTitle">Type naturally, the way you usually do</h2>
+        <p id="typeLede" class="lede"></p>
+      </div>
+      <div class="roundtimer" id="roundTimer" hidden><span class="num" id="calmClock">3:00</span><span>left in this round</span></div>
+    </div>
     <div class="panel">
       <div class="prompt" id="typePrompt"></div>
       <textarea id="typeBox" spellcheck="false" autocomplete="off" aria-label="Your answer"></textarea>
@@ -733,6 +744,7 @@ dl.summary dd { margin: 0; }
     $("typeEyebrow").textContent = "Warm-up · learns your normal typing";
     $("typeTitle").textContent = "Type naturally, the way you usually do";
     $("typeLede").textContent = "Press Next question when you're done, or keep writing and it changes by itself at about 40 words. Moves on to the next round at 600 keystrokes.";
+    $("roundTimer").hidden = true;
     promptList = WARMUP_PROMPTS; promptIdx = -1; nextPrompt();
     S.current = "warmup"; S.phases.warmup.t0 = Date.now();
     $("typeDoneHint").textContent = "";
@@ -760,6 +772,7 @@ dl.summary dd { margin: 0; }
     $("typeEyebrow").textContent = "Calm round · 3 minutes";
     $("typeTitle").textContent = "Relax and take your time";
     $("typeLede").textContent = "No right answers. The round ends by itself.";
+    $("roundTimer").hidden = false;
     promptList = CALM_PROMPTS; promptIdx = -1; nextPrompt();
     S.current = "calm"; S.phases.calm.t0 = Date.now();
     $("typeDoneHint").textContent = "";
@@ -768,7 +781,8 @@ dl.summary dd { margin: 0; }
     const end = Date.now() + CALM_SECONDS * 1000;
     const tick = () => {
       const left = Math.max(0, Math.round((end - Date.now()) / 1000));
-      $("typeProgress").textContent = fmt(left) + " left · " + S.phases.calm.recs.length + " keystrokes";
+      $("calmClock").textContent = fmt(left);
+      $("typeProgress").textContent = S.phases.calm.recs.length + " keystrokes";
       $("typeMeter").style.width = (100 * (1 - left / CALM_SECONDS)) + "%";
       if (left <= 0) {
         clearInterval(typeTimer); endPhase();
