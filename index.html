@@ -166,7 +166,7 @@ textarea {
 /* Pressure round: a large question timer that pulses every second and grows in the last 10 s. */
 #promptClock { font-size: 3.2rem; line-height: 1; min-width: 2.2ch; text-align: right; transition: font-size 0.2s; transform-origin: right center; }
 #promptClock.urgent { font-size: 4rem; color: var(--pressure); text-shadow: 0 0 18px var(--pressure-soft); }
-#roundClock { font-size: var(--step-2); }
+.hud .num.done { font-size: var(--step-3); line-height: 1; }
 .roundhead { display: grid; grid-template-columns: 1fr auto; gap: 18px; align-items: start; }
 .roundhead .stack { gap: 10px; }
 .roundtimer { display: grid; justify-items: end; gap: 2px; }
@@ -334,10 +334,10 @@ dl.summary dd { margin: 0; }
 
   <!-- Pressure round -->
   <section id="s-pressure" class="stack round" hidden>
-    <p class="eyebrow pressure">Pressure round · 20 words before the timer hits 0 · every question gets less time</p>
+    <p class="eyebrow pressure">Pressure round · 10 questions · at least 5 words each · less time every question</p>
     <div class="hud">
-      <div><span>Round left</span><span class="num" id="roundClock">3:00</span></div>
-      <div><span>Answers done</span><span class="num" id="answersDone">0 / 6</span></div>
+      <div><span>Done</span><span class="num done" id="answersDone">0 / 10</span></div>
+      <div><span>Question</span><span class="num" id="qNumber">1 of 10</span></div>
       <div><span>Your pace</span><span class="num" id="paceState">On pace</span></div>
     </div>
     <div class="panel pressure" id="pressurePanel">
@@ -348,7 +348,11 @@ dl.summary dd { margin: 0; }
       <textarea id="pressBox" spellcheck="false" autocomplete="off" aria-label="Your answer"></textarea>
       <div class="bigcount" id="bigCount" hidden aria-hidden="true"></div>
       <div class="pace" aria-hidden="true"><i id="paceYou"></i><b id="paceNeed"></b></div>
-      <div class="meta"><span>Words: <span class="num" id="wordCount">0</span> / 20 · stay ahead of the white line</span><span class="flash" id="pressFlash" role="status"></span></div>
+      <div class="meta">
+        <span>Words: <span class="num" id="wordCount">0</span> / 5 · press <b>Enter</b> to submit · stay ahead of the white line</span>
+        <button type="button" id="pressNext" disabled>Submit answer ↵</button>
+      </div>
+      <p class="flash" id="pressFlash" role="status"></p>
     </div>
   </section>
 
@@ -397,10 +401,11 @@ dl.summary dd { margin: 0; }
   const PAUSE_MS = 1000, IDLE_MS = 10000;
   // FEATURES-PAUSE
   const WARMUP_KEYS = 600;                  // 12 chunks of 50 (study/analyze_study.py WARMUP_CHUNKS)
-  const CALM_SECONDS = 180, PRESSURE_SECONDS = 180;
+  const CALM_SECONDS = 180;
   // Pressure round: easy questions, so people keep typing; the stress comes from
   // time that shrinks every question, a pace bar, sounds and a number to remember.
-  const QUESTION_SECONDS = [40, 35, 30, 25, 20], MIN_WORDS = 20, ANSWER_TARGET = 6;
+  // 10 questions; each gets less time (26 s down to 12 s = 3 minutes in total).
+  const QUESTION_SECONDS = [26, 24, 22, 20, 18, 16, 15, 14, 13, 12], MIN_WORDS = 5, QUESTIONS = 10;
   const rnd = (lo, hi) => lo + Math.floor(Math.random() * (hi - lo + 1));
 
   const WARMUP_PROMPTS = [
@@ -484,7 +489,7 @@ dl.summary dd { margin: 0; }
 
   // ---------- state ----------
   const S = {
-    pid: "", session: 1, survey: {}, ratings: {}, mem: { number: "", correct: null }, unid: 0,
+    pid: "", session: 1, survey: {}, ratings: {}, mem: { number: "", correct: null }, press: null, unid: 0,
     phases: { warmup: { recs: [], t0: 0, t1: 0 }, calm: { recs: [], t0: 0, t1: 0 }, pressure: { recs: [], t0: 0, t1: 0 } },
     current: null,
   };
@@ -785,7 +790,7 @@ dl.summary dd { margin: 0; }
         rating("calm", "Calm round finished", "How stressed did you feel during that round?", "calm", () => getReady({
           eyebrow: "Next: Pressure round · 3 minutes",
           title: "Remember this number. You'll be asked at the end.",
-          text: "Then write at least 20 words per question before its timer runs out. Every question gives you less time.",
+          text: "Then answer 10 questions, at least 5 words each, before each timer runs out. Every question gives you less time.",
           extra: newMemoryNumber(),
           seconds: 8,
           pressure: true,
@@ -805,21 +810,25 @@ dl.summary dd { margin: 0; }
   // ---------- pressure round ----------
   const pressBox = $("pressBox");
   attachRecorder(pressBox);
-  let pTimer = null, pPromptIdx = -1, promptEnd = 0, promptStart = 0, promptSecs = 40, roundEnd = 0, answers = 0, lastBehindBuzz = 0;
+  let pTimer = null, pPromptIdx = -1, promptEnd = 0, promptStart = 0, promptSecs = 26, answers = 0, lastBehindBuzz = 0;
   function newMemoryNumber() {
     S.mem.number = Array.from({ length: 5 }, () => rnd(0, 9)).join("");
     return S.mem.number.split("").join(" ");
   }
+  let qNum = 0;
   function nextPressPrompt(completed) {
     if (completed) answers++;
+    $("answersDone").textContent = answers + " / " + QUESTIONS;
+    if (qNum >= QUESTIONS) { finishPressure(); return; }
+    qNum++;
     pPromptIdx = (pPromptIdx + 1) % PRESSURE_PROMPTS.length;
     $("pressPrompt").textContent = PRESSURE_PROMPTS[pPromptIdx];
-    pressBox.value = ""; $("wordCount").textContent = "0";
-    promptSecs = QUESTION_SECONDS[Math.min(pPromptIdx, QUESTION_SECONDS.length - 1)];
+    $("qNumber").textContent = qNum + " of " + QUESTIONS;
+    pressBox.value = ""; $("wordCount").textContent = "0"; $("pressNext").disabled = true;
+    promptSecs = QUESTION_SECONDS[qNum - 1];
     promptStart = Date.now();
     promptEnd = promptStart + promptSecs * 1000;
-    $("answersDone").textContent = answers + " / " + ANSWER_TARGET;
-    $("answersDone").classList.toggle("bad", answers < ANSWER_TARGET);
+    pressBox.focus();
   }
   function flash(msg, ok) {
     const f = $("pressFlash");
@@ -827,22 +836,41 @@ dl.summary dd { margin: 0; }
     clearTimeout(flash.t); flash.t = setTimeout(() => (f.textContent = ""), 1800);
   }
   const wordsIn = (el) => el.value.trim().split(/\s+/).filter(Boolean).length;
+  function submitAnswer() {
+    if (S.current !== "pressure") return;
+    if (wordsIn(pressBox) < MIN_WORDS) { flash("At least " + MIN_WORDS + " words, keep typing!"); buzz(); return; }
+    flash("Answer " + (answers + 1) + " of " + QUESTIONS + " done ✓", true);
+    nextPressPrompt(true);
+  }
   pressBox.addEventListener("input", () => {
     const words = wordsIn(pressBox);
     $("wordCount").textContent = words;
-    if (words >= MIN_WORDS) { flash("Answer accepted", true); nextPressPrompt(true); }
+    $("pressNext").disabled = words < MIN_WORDS;
   });
+  pressBox.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submitAnswer(); }
+  });
+  $("pressNext").addEventListener("click", submitAnswer);
   function updatePace(now) {
-    // Where you should be by now (to reach 20 words in time) vs. where you are.
+    // Where you should be by now (to reach 5 words in time) vs. where you are.
     const frac = Math.min(1, (now - promptStart) / (promptSecs * 1000));
     const need = MIN_WORDS * frac, have = wordsIn(pressBox);
     $("paceYou").style.width = Math.min(100, (100 * have) / MIN_WORDS) + "%";
     $("paceNeed").style.left = "calc(" + (100 * frac) + "% - 1px)";
-    const behind = have + 2 < need;
+    const behind = have + 1 < need;
     $("paceYou").parentElement.classList.toggle("behind", behind);
     $("paceState").textContent = behind ? "Falling behind" : "On pace";
     $("paceState").classList.toggle("bad", behind);
     if (behind && now - lastBehindBuzz > 4000) { lastBehindBuzz = now; buzz(); flash("Falling behind. Type faster!"); }
+  }
+  function finishPressure() {
+    clearInterval(pTimer);
+    $("bigCount").hidden = true;
+    $("pressurePanel").classList.remove("urgent");
+    document.body.classList.remove("pressure-mode", "urgent");
+    S.press = { answered: answers, of: QUESTIONS };
+    endPhase();
+    startRecall();
   }
   function startPressure() {
     setStep("pressure"); show("s-pressure");
@@ -850,23 +878,23 @@ dl.summary dd { margin: 0; }
     document.body.classList.add("pressure-mode");
     let lastSecond = -1;
     S.current = "pressure"; S.phases.pressure.t0 = Date.now();
-    answers = 0; pPromptIdx = -1; lastBehindBuzz = Date.now(); nextPressPrompt(false);
-    roundEnd = Date.now() + PRESSURE_SECONDS * 1000;
-    pressBox.focus();
+    answers = 0; qNum = 0; pPromptIdx = -1; lastBehindBuzz = Date.now();
+    $("answersDone").textContent = "0 / " + QUESTIONS;
+    nextPressPrompt(false);
     const tick = () => {
+      if (S.current !== "pressure") return;
       const now = Date.now();
-      const left = Math.max(0, Math.round((roundEnd - now) / 1000));
-      $("roundClock").textContent = fmt(left);
       const pl = Math.max(0, Math.ceil((promptEnd - now) / 1000));
+      const urgentAt = Math.min(10, Math.floor(promptSecs / 2));
       const clock = $("promptClock");
       if (clock.textContent !== String(pl)) {
         clock.textContent = pl;
-        clock.classList.toggle("urgent", pl <= 10);
-        $("timerLabel").textContent = pl <= 10 ? "hurry, finish your answer now!" : "seconds to finish this answer";
+        clock.classList.toggle("urgent", pl <= urgentAt);
+        $("timerLabel").textContent = pl <= urgentAt ? "hurry, finish your answer now!" : "seconds to finish this answer";
         clock.classList.remove("beat"); void clock.offsetWidth; clock.classList.add("beat");
       }
-      $("pressurePanel").classList.toggle("urgent", pl <= 10);
-      document.body.classList.toggle("urgent", pl <= 10);
+      $("pressurePanel").classList.toggle("urgent", pl <= urgentAt);
+      document.body.classList.toggle("urgent", pl <= urgentAt);
       if (pl !== lastSecond) {
         lastSecond = pl;
         const big = $("bigCount");
@@ -876,18 +904,15 @@ dl.summary dd { margin: 0; }
           countBeep(pl); say(pl);
         } else {
           big.hidden = true;
-          if (pl <= 10 && pl > 0) warnBeep(); else tickSound();
+          if (pl <= urgentAt && pl > 0) warnBeep(); else tickSound();
         }
       }
       updatePace(now);
-      if (pl <= 0) { flash("Time's up, next question"); buzz(); nextPressPrompt(false); }
-      if (left <= 0) {
-        clearInterval(pTimer);
-        $("bigCount").hidden = true;
-        $("pressurePanel").classList.remove("urgent");
-        document.body.classList.remove("pressure-mode", "urgent");
-        endPhase();
-        startRecall();
+      if (pl <= 0) {
+        const done = wordsIn(pressBox) >= MIN_WORDS;
+        flash(done ? "Time's up, answer counted ✓" : "Time's up, question missed", done);
+        buzz();
+        nextPressPrompt(done);
       }
     };
     clearInterval(pTimer); pTimer = setInterval(tick, 200); tick();
@@ -961,11 +986,12 @@ dl.summary dd { margin: 0; }
   async function finish() {
     setStep("done"); show("s-done");
     const out = {
-      v: 2, study: "mindflow-typing-1", pid: S.pid, session: S.session,
+      v: 3, study: "mindflow-typing-1", pid: S.pid, session: S.session,
       date: new Date().toISOString().slice(0, 10),
       dev: { coarse, unid: S.unid },
       r: { start: S.ratings.start, calm: S.ratings.calm, pressure: S.ratings.pressure },
       mem: { correct: S.mem.correct },
+      pr: S.press || null,
       q: S.survey,
       p: { warmup: phaseOut("warmup"), calm: phaseOut("calm"), pressure: phaseOut("pressure") },
     };
